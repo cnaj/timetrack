@@ -1,42 +1,37 @@
 extern crate chrono;
 
-use crate::LogAction::{Start, Stop};
-use crate::LogEvent::{Pause, Task, Work};
 use chrono::{DateTime, FixedOffset};
+use crate::LogEvent::{On, Off, Pause, Continue, Cancel, Start, Stop, Rename};
 
 #[derive(Eq, PartialEq, Debug)]
 enum LogEvent {
-    Work,
+    On,
+    Off,
     Pause,
-    Task { name: String },
-}
-
-#[derive(Eq, PartialEq, Debug)]
-enum LogAction {
-    Start,
+    Continue,
+    Cancel,
+    Start(String),
     Stop,
+    Rename { to: String, from: Option<String> },
 }
 
 #[derive(Eq, PartialEq, Debug)]
 struct TimelogEntry {
     time: DateTime<FixedOffset>,
-    action: LogAction,
     event: LogEvent,
 }
 
 impl TimelogEntry {
-    fn new(time: &DateTime<FixedOffset>, action: LogAction, event: LogEvent) -> TimelogEntry {
+    fn new(time: &DateTime<FixedOffset>, event: LogEvent) -> TimelogEntry {
         TimelogEntry {
             time: *time,
-            action,
             event,
         }
     }
 
-    fn of_str(time: &str, action: LogAction, event: LogEvent) -> TimelogEntry {
+    fn of_str(time: &str, event: LogEvent) -> TimelogEntry {
         TimelogEntry {
             time: DateTime::parse_from_rfc3339(time).unwrap(),
-            action,
             event,
         }
     }
@@ -53,22 +48,22 @@ impl TimelogEntry {
             None => return Err("expected time part".to_owned()),
         }
 
-        let action_part = part_it.next().ok_or("expected action part")?;
-        let action: LogAction = match action_part {
-            "start" => Start,
-            "stop" => Stop,
-            &_ => return Err("unexpected action: ".to_owned() + action_part),
-        };
-
         let event_part = part_it.next().ok_or("expected event part")?;
         let event: LogEvent = match event_part {
-            "work" => Work,
+            "on" => On,
+            "off" => Off,
             "pause" => Pause,
-            "task" => {
+            "continue" => Continue,
+            "cancel" => Cancel,
+            "start" => {
                 let name = part_it.next().ok_or("expected task name")?;
-                Task {
-                    name: name.to_string(),
-                }
+                Start(name.to_owned())
+            }
+            "stop" => Stop,
+            "rename" => {
+                let to = part_it.next().ok_or("expected target task name")?.to_owned();
+                let from = part_it.next().map(|s| s.to_owned());
+                Rename { to, from }
             }
             &_ => return Err("unexpected event: ".to_owned() + event_part),
         };
@@ -79,11 +74,7 @@ impl TimelogEntry {
         });
 
         if rest.is_empty() {
-            Ok(TimelogEntry {
-                time,
-                action,
-                event,
-            })
+            Ok(TimelogEntry { time, event })
         } else {
             Err("unexpected trailing content: ".to_owned() + &rest)
         }
@@ -97,21 +88,19 @@ mod tests {
 
     #[test]
     fn test_parse_line_work() {
-        let entry = TimelogEntry::parse_from_str("2019-11-10T16:04+0100\tstart\twork");
+        let entry = TimelogEntry::parse_from_str("2019-11-10T16:04+0100\ton");
         let expected = TimelogEntry {
             time: DateTime::parse_from_rfc3339("2019-11-10T16:04:00+01:00").unwrap(),
-            event: Work,
-            action: Start,
+            event: On,
         };
         assert_eq!(entry, Ok(expected));
     }
 
     #[test]
     fn test_parse_line_pause() {
-        let entry = TimelogEntry::parse_from_str("2019-11-10T16:04+0100\tstop\tpause");
+        let entry = TimelogEntry::parse_from_str("2019-11-10T16:04+0100\tpause");
         let expected = TimelogEntry::new(
             &DateTime::parse_from_rfc3339("2019-11-10T16:04:00+01:00").unwrap(),
-            Stop,
             Pause,
         );
         assert_eq!(entry, Ok(expected));
@@ -120,21 +109,16 @@ mod tests {
     #[test]
     fn test_parse_line_task() {
         let entry =
-            TimelogEntry::parse_from_str("2019-11-10T16:04+0100\tstart\ttask\tRefactor code");
+            TimelogEntry::parse_from_str("2019-11-10T16:04+0100\tstart\tRefactor code");
         let expected = TimelogEntry::of_str(
-            "2019-11-10T16:04:00+01:00",
-            Start,
-            Task {
-                name: "Refactor code".to_string(),
-            },
-        );
+            "2019-11-10T16:04:00+01:00", Start("Refactor code".to_owned()));
         assert_eq!(entry, Ok(expected));
     }
 
     #[test]
     fn test_parse_line_trailing() {
         let entry =
-            TimelogEntry::parse_from_str("2019-11-10T16:04+0100\tstart\ttask\tfoobar\tthis \tis trailing");
+            TimelogEntry::parse_from_str("2019-11-10T16:04+0100\tstart\tfoobar\tthis \tis trailing");
         let expected = Err("unexpected trailing content: this is trailing".to_owned());
         assert_eq!(entry, expected);
     }
