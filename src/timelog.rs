@@ -1,13 +1,10 @@
-extern crate chrono;
-
 use chrono::{DateTime, FixedOffset};
-use crate::timelog::LogEvent::{On, Off, Pause, Continue, Cancel, Start, Stop, Rename};
+use crate::timelog::LogEvent::{On, Off, Continue, Cancel, Start, Stop, Rename};
 
 #[derive(Eq, PartialEq, Debug)]
 pub enum LogEvent {
     On,
     Off,
-    Pause,
     Continue,
     Cancel,
     Start(String),
@@ -21,6 +18,7 @@ pub struct TimelogEntry {
     event: LogEvent,
 }
 
+#[allow(dead_code)]
 impl TimelogEntry {
     fn new(time: &DateTime<FixedOffset>, event: LogEvent) -> TimelogEntry {
         TimelogEntry {
@@ -52,7 +50,6 @@ impl TimelogEntry {
         let event: LogEvent = match event_part {
             "on" => On,
             "off" => Off,
-            "pause" => Pause,
             "continue" => Continue,
             "cancel" => Cancel,
             "start" => {
@@ -97,11 +94,11 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_line_pause() {
-        let entry = TimelogEntry::parse_from_str("2019-11-10T16:04+0100\tpause");
+    fn test_parse_line_continue() {
+        let entry = TimelogEntry::parse_from_str("2019-11-10T16:04+0100\tcontinue");
         let expected = TimelogEntry::new(
             &DateTime::parse_from_rfc3339("2019-11-10T16:04:00+01:00").unwrap(),
-            Pause,
+            Continue,
         );
         assert_eq!(entry, Ok(expected));
     }

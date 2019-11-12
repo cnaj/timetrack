@@ -1,10 +1,11 @@
-use crate::timelog::TimelogEntry;
 use std::io;
-use std::path::{Path, Iter};
+use std::path::Path;
 use std::fs::File;
 use std::io::BufRead;
-use std::sync::mpsc::RecvTimeoutError::Timeout;
 
+use crate::timelog::TimelogEntry;
+
+#[derive(Eq, PartialEq, Debug)]
 pub enum LogLine {
     Entry(TimelogEntry),
     Ignored,
@@ -30,7 +31,7 @@ impl Iterator for LogLines {
 
                         match TimelogEntry::parse_from_str(line.as_ref()) {
                             Err(err) => Some(Err(format!("Unknown log entry: {}", err))),
-                            Ok(logEntry) => Some(Ok(LogLine::Entry(logEntry))),
+                            Ok(log_entry) => Some(Ok(LogLine::Entry(log_entry))),
                         }
                     }
                 }
