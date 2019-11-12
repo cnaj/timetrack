@@ -36,7 +36,7 @@ impl TimelogEntry {
         }
     }
 
-    fn parse_from_str<'a>(line: &'a str) -> Result<TimelogEntry, String> {
+    pub fn parse_from_str<'a>(line: &'a str) -> Result<TimelogEntry, String> {
         let mut part_it: std::str::Split<'a, char> = line.split('\t');
 
         let time: DateTime<FixedOffset>;
