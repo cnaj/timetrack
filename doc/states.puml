@@ -1,0 +1,22 @@
+@startuml
+skinparam monochrome true
+skinparam shadowing false
+
+[*] --> Idle
+Idle --> DayTracking : on/clear tasks
+Idle --> DayTracking : continue[not exists lastTask]
+
+DayTracking --> Idle : off
+DayTracking --> TaskActive : start/push task
+
+TaskActive --> TaskActive : start/push task
+TaskActive --> DayTracking : stop/persist stopwatch,\n pop task
+TaskActive --> DayTracking : cancel
+
+TaskActive --> Idle : off/persist stopwatch,\n persist lastTask
+Idle --> TaskActive : continue[exists lastTask]
+
+TaskActive : entry/start stopwatch
+TaskActive : exit/stop stopwatch
+
+@enduml
