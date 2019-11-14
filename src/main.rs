@@ -1,10 +1,12 @@
+#![allow(dead_code)]
+
 use crate::fileread::read_log_lines;
 use std::env;
 
 pub mod fileread;
 pub mod timelog;
 
-fn main() {
+fn main() -> Result<(), String> {
     let args: Vec<String> = env::args().collect();
 
     if args.len() != 2 {
@@ -12,15 +14,28 @@ fn main() {
         std::process::exit(1);
     }
 
-    match read_log_lines(args[1].as_str()) {
-        Err(err) => println!("ERROR: Could not read file: {}", err),
-        Ok(lines) => {
-            for line in lines.into_iter() {
-                match line {
-                    Ok(entry) => println!("{:?}", entry),
-                    Err(err) => println!("ERROR: {}", err),
-                }
-            };
+    print_lines(args[1].as_str())?;
+    Ok(())
+}
+
+fn print_lines(path: &str) -> Result<(), String> {
+    let lines = read_log_lines(path)
+        .map_err(|err| format!("Could not read file: {}", err))?;
+
+    for line in lines {
+        match line {
+            Ok(entry) => println!("{:?}", entry),
+            Err(err) => println!("Error: {}", err),
         }
     }
+    Ok(())
+}
+
+fn gather_tasks(path: &str) -> Result<(), String> {
+    let lines = read_log_lines(path)
+        .map_err(|err| format!("Could not read file: {}", err))?;
+
+    // TODO
+
+    Ok(())
 }

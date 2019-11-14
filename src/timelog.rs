@@ -14,8 +14,8 @@ pub enum LogEvent {
 
 #[derive(Eq, PartialEq, Debug)]
 pub struct TimelogEntry {
-    time: DateTime<FixedOffset>,
-    event: LogEvent,
+    pub time: DateTime<FixedOffset>,
+    pub event: LogEvent,
 }
 
 #[allow(dead_code)]
