@@ -4,9 +4,8 @@ pub mod fileread;
 pub mod timelog;
 
 use crate::fileread::{read_log_lines, LogLine, DayCollector};
-use crate::timelog::LogEvent;
+use crate::timelog::{LogEvent, TimelogEntry};
 use std::env;
-use chrono::{DateTime, FixedOffset};
 use std::ops::Sub;
 
 fn main() -> Result<(), String> {
@@ -24,26 +23,26 @@ fn main() -> Result<(), String> {
 fn print_lines(path: &str) -> Result<(), String> {
     let lines = read_log_lines(path).map_err(|err| format!("Could not read file: {}", err))?;
 
-    let mut last_time: Option<DateTime<FixedOffset>> = None;
+    let mut last_entry: Option<TimelogEntry> = None;
     for line in lines {
         match line {
             Ok(entry) => {
                 match entry {
                     LogLine::Entry(entry) => {
                         if let LogEvent::On = entry.event {
-                            last_time = None;
+                            last_entry = None;
                         }
 
-                        match last_time {
-                            Some(time) => {
-                                let diff = entry.time.sub(time);
-                                println!("{:?};    {} minutes", entry, diff.num_minutes());
+                        match last_entry {
+                            Some(last_entry) => {
+                                let diff = entry.time.sub(last_entry.time);
+                                println!("{:?};    {} minutes", last_entry, diff.num_minutes());
                             }
-                            None => println!("{:?}", entry),
+                            None => println!("Start of new day"),
                         }
-                        last_time = Some(entry.time);
+                        last_entry = Some(entry);
                     }
-                    LogLine::Ignored => println!("{:?}", entry),
+                    LogLine::Ignored => println!(),
                 }
             }
             Err(err) => println!("Error: {}", err),
