@@ -1,7 +1,7 @@
+use crate::timelog::LogEvent::{Cancel, Continue, Off, On, Rename, Start, Stop};
 use chrono::{DateTime, FixedOffset};
-use crate::timelog::LogEvent::{On, Off, Continue, Cancel, Start, Stop, Rename};
 
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug, Clone)]
 pub enum LogEvent {
     On,
     Off,
@@ -12,7 +12,7 @@ pub enum LogEvent {
     Rename { to: String, from: Option<String> },
 }
 
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug, Clone)]
 pub struct TimelogEntry {
     pub time: DateTime<FixedOffset>,
     pub event: LogEvent,
@@ -21,10 +21,7 @@ pub struct TimelogEntry {
 #[allow(dead_code)]
 impl TimelogEntry {
     fn new(time: &DateTime<FixedOffset>, event: LogEvent) -> TimelogEntry {
-        TimelogEntry {
-            time: *time,
-            event,
-        }
+        TimelogEntry { time: *time, event }
     }
 
     fn of_str(time: &str, event: LogEvent) -> TimelogEntry {
@@ -58,7 +55,10 @@ impl TimelogEntry {
             }
             "stop" => Stop,
             "rename" => {
-                let to = part_it.next().ok_or("expected target task name")?.to_owned();
+                let to = part_it
+                    .next()
+                    .ok_or("expected target task name")?
+                    .to_owned();
                 let from = part_it.next().map(|s| s.to_owned());
                 Rename { to, from }
             }
@@ -105,17 +105,19 @@ mod tests {
 
     #[test]
     fn test_parse_line_task() {
-        let entry =
-            TimelogEntry::parse_from_str("2019-11-10T16:04+0100\tstart\tRefactor code");
+        let entry = TimelogEntry::parse_from_str("2019-11-10T16:04+0100\tstart\tRefactor code");
         let expected = TimelogEntry::of_str(
-            "2019-11-10T16:04:00+01:00", Start("Refactor code".to_owned()));
+            "2019-11-10T16:04:00+01:00",
+            Start("Refactor code".to_owned()),
+        );
         assert_eq!(entry, Ok(expected));
     }
 
     #[test]
     fn test_parse_line_trailing() {
-        let entry =
-            TimelogEntry::parse_from_str("2019-11-10T16:04+0100\tstart\tfoobar\tthis \tis trailing");
+        let entry = TimelogEntry::parse_from_str(
+            "2019-11-10T16:04+0100\tstart\tfoobar\tthis \tis trailing",
+        );
         let expected = Err("unexpected trailing content: this is trailing".to_owned());
         assert_eq!(entry, expected);
     }

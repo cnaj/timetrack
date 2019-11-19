@@ -23,19 +23,19 @@ impl TaskRegistry {
         TaskRegistry { tasks, names }
     }
 
-    fn build<I: Iterator<Item=TimelogEntry>>(entries: I) -> Result<TaskRegistry, String> {
+    fn build<I: Iterator<Item = TimelogEntry>>(entries: I) -> Result<TaskRegistry, String> {
         let mut tasks: Vec<Task> = Vec::new();
         let mut names: HashMap<String, usize> = HashMap::new();
 
         for entry in entries {
             match entry.event {
                 LogEvent::Start(name) => {
-                    if !names.contains_key(&name){
+                    if !names.contains_key(&name) {
                         names.insert(name.to_owned(), tasks.len());
                         tasks.push(Task { name });
                     }
-                },
-                _ => {},
+                }
+                _ => {}
             }
         }
 
