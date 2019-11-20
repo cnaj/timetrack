@@ -5,17 +5,18 @@ use std::path::Path;
 
 use crate::timelog::LogEvent;
 use crate::timelog::TimelogEntry;
+use chrono::{DateTime, FixedOffset};
 
 #[derive(Eq, PartialEq, Debug, Clone)]
 pub enum LogLine {
     Entry(TimelogEntry),
-    Ignored,
+    Ignored(String),
 }
 
 impl LogLine {
     fn from_str(line: &str) -> Result<LogLine, String> {
         if line.is_empty() || line.starts_with('#') {
-            return Ok(LogLine::Ignored);
+            return Ok(LogLine::Ignored(line.to_owned()));
         }
 
         let entry = TimelogEntry::parse_from_str(line)?;
@@ -38,10 +39,18 @@ impl Iterator for LogLines {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct DayCollection {
+    pub start: Option<DateTime<FixedOffset>>,
+    pub lines: Vec<LogLine>,
+}
+
 pub struct DayCollector {
     log_lines: LogLines,
     done: bool,
     buffer: Vec<LogLine>,
+    lookahead: usize,
+    start: Option<DateTime<FixedOffset>>,
 }
 
 impl DayCollector {
@@ -50,12 +59,14 @@ impl DayCollector {
             log_lines,
             done: false,
             buffer: Vec::new(),
+            lookahead: 0,
+            start: None,
         }
     }
 }
 
 impl Iterator for DayCollector {
-    type Item = Result<Vec<LogLine>, String>;
+    type Item = Result<DayCollection, String>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.done {
@@ -65,9 +76,16 @@ impl Iterator for DayCollector {
             match self.log_lines.next() {
                 None => {
                     self.done = true;
-                    let result: Vec<LogLine> = self.buffer.iter().cloned().collect();
-                    self.buffer.clear();
-                    return Some(Ok(result));
+                    let lines: Vec<LogLine> = self.buffer.drain(..).collect();
+                    if !lines.is_empty() {
+                        let result = DayCollection {
+                            start: self.start.clone(),
+                            lines,
+                        };
+                        return Some(Ok(result));
+                    } else {
+                        return None;
+                    }
                 }
                 Some(line) => match line {
                     Err(err) => {
@@ -75,20 +93,34 @@ impl Iterator for DayCollector {
                         return Some(Err(format!("Input error: {}", err)));
                     }
                     Ok(line) => {
+                        self.buffer.push(line.clone());
                         match &line {
                             LogLine::Entry(entry) => match entry.event {
                                 LogEvent::On => {
-                                    let result: Vec<LogLine> =
-                                        self.buffer.iter().cloned().collect();
-                                    self.buffer.clear();
-                                    self.buffer.push(line.clone());
-                                    return Some(Ok(result));
+                                    if self.start.is_none() {
+                                        self.start = Some(entry.time.clone());
+                                    } else {
+                                        let start = self.start.unwrap();
+                                        let len = self.buffer.len() - self.lookahead - 1;
+                                        self.start = Some(entry.time.clone());
+                                        self.lookahead = 0;
+                                        let lines: Vec<LogLine> =
+                                            self.buffer.drain(..len).collect();
+                                        let result = DayCollection {
+                                            start: Some(start),
+                                            lines,
+                                        };
+                                        return Some(Ok(result));
+                                    }
                                 }
                                 _ => {}
                             },
-                            _ => {}
+                            LogLine::Ignored(line) => {
+                                if self.start.is_none() || self.lookahead > 0 || !line.is_empty() {
+                                    self.lookahead += 1;
+                                }
+                            }
                         }
-                        self.buffer.push(line.clone());
                     }
                 },
             }

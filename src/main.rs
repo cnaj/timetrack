@@ -16,7 +16,7 @@ fn main() -> Result<(), String> {
         std::process::exit(1);
     }
 
-    print_lines(args[1].as_str())?;
+    gather_days(args[1].as_str())?;
     Ok(())
 }
 
@@ -42,7 +42,7 @@ fn print_lines(path: &str) -> Result<(), String> {
                         }
                         last_entry = Some(entry);
                     }
-                    LogLine::Ignored => println!(),
+                    LogLine::Ignored(_) => println!(),
                 }
             }
             Err(err) => println!("Error: {}", err),
@@ -57,7 +57,7 @@ fn gather_tasks(path: &str) -> Result<(), String> {
     let lines = lines.filter_map(|res| match res {
         Ok(line) => match line {
             LogLine::Entry(entry) => Some(Ok(entry)),
-            LogLine::Ignored => None,
+            LogLine::Ignored(_) => None,
         },
         Err(err) => Some(Err(err)),
     });
@@ -78,10 +78,8 @@ fn gather_days(path: &str) -> Result<(), String> {
     let day_collector = DayCollector::new(lines);
 
     for day in day_collector {
-        match day {
-            Ok(entries) => println!("{:?}", entries),
-            Err(err) => println!("Error: {}", err),
-        }
+        let entries = day?;
+        println!("{:?}", entries);
     }
 
     Ok(())
