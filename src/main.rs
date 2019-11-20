@@ -105,7 +105,7 @@ fn gather_day_tasks(path: &str) -> Result<(), String> {
 
                 let registry = TaskRegistry::build(it)?;
                 println!("Start: {:?}", start);
-                println!("{:?}", registry);
+                println!("{:?}", registry.get_tasks());
                 println!();
             },
             None => {},
