@@ -1,12 +1,14 @@
 #![allow(dead_code)]
 
 pub mod fileread;
+pub mod taskregistry;
 pub mod timelog;
 
-use crate::fileread::{read_log_lines, LogLine, DayCollector};
-use crate::timelog::{LogEvent, TimelogEntry};
 use std::env;
 use std::ops::Sub;
+use crate::fileread::{read_log_lines, LogLine, DayCollector};
+use crate::timelog::{LogEvent, TimelogEntry};
+use crate::taskregistry::TaskRegistry;
 
 fn main() -> Result<(), String> {
     let args: Vec<String> = env::args().collect();
@@ -16,7 +18,7 @@ fn main() -> Result<(), String> {
         std::process::exit(1);
     }
 
-    gather_days(args[1].as_str())?;
+    gather_day_tasks(args[1].as_str())?;
     Ok(())
 }
 
@@ -80,6 +82,34 @@ fn gather_days(path: &str) -> Result<(), String> {
     for day in day_collector {
         let entries = day?;
         println!("{:?}", entries);
+    }
+
+    Ok(())
+}
+
+
+fn gather_day_tasks(path: &str) -> Result<(), String> {
+    let lines = read_log_lines(path).map_err(|err| format!("Could not read file: {}", err))?;
+
+    let day_collector = DayCollector::new(lines);
+
+    for day in day_collector {
+        let entries = day?;
+        match entries.start {
+            Some(start) => {
+                let it = entries.lines.iter()
+                    .filter_map(|line| match line {
+                        LogLine::Entry(entry) => Some(entry.clone()),
+                        LogLine::Ignored(_) => None,
+                    });
+
+                let registry = TaskRegistry::build(it)?;
+                println!("Start: {:?}", start);
+                println!("{:?}", registry);
+                println!();
+            },
+            None => {},
+        }
     }
 
     Ok(())

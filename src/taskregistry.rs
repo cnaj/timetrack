@@ -1,12 +1,12 @@
 use crate::timelog::{LogEvent, TimelogEntry};
 use std::collections::HashMap;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Task {
     name: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TaskRegistry {
     tasks: Vec<Task>,
     names: HashMap<String, usize>,
@@ -23,7 +23,7 @@ impl TaskRegistry {
         TaskRegistry { tasks, names }
     }
 
-    fn build<I: Iterator<Item = TimelogEntry>>(entries: I) -> Result<TaskRegistry, String> {
+    pub fn build<I: Iterator<Item = TimelogEntry>>(entries: I) -> Result<TaskRegistry, String> {
         let mut tasks: Vec<Task> = Vec::new();
         let mut names: HashMap<String, usize> = HashMap::new();
 
