@@ -103,7 +103,10 @@ impl TaskRegistryBuilder {
         let name = self
             .current_task_name
             .as_ref()
-            .ok_or(format!("No current task recorded in state {:?}", self.state))?
+            .ok_or(format!(
+                "No current task recorded in state {:?}",
+                self.state
+            ))?
             .to_owned();
         self.add_time_to_task(&name, time)?;
         Ok(())
@@ -148,7 +151,9 @@ pub struct TaskRegistry {
 }
 
 impl TaskRegistry {
-    pub fn build<I: Iterator<Item = TimelogEntry>>(entries: I) -> Result<TaskRegistry, String> {
+    pub fn build<I: Iterator<Item = (usize, TimelogEntry)>>(
+        entries: I,
+    ) -> Result<TaskRegistry, String> {
         let mut builder = TaskRegistryBuilder {
             tasks: Vec::new(),
             names: HashMap::new(),
@@ -158,7 +163,9 @@ impl TaskRegistry {
         };
 
         for entry in entries {
-            builder.add_entry(&entry)?;
+            builder
+                .add_entry(&entry.1)
+                .map_err(|e| format!("{} (in line {})", e, entry.0))?;
         }
 
         Ok(TaskRegistry {

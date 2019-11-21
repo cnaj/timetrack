@@ -98,8 +98,8 @@ fn gather_day_tasks(path: &str) -> Result<(), String> {
         match entries.start {
             Some(start) => {
                 let it = entries.lines.iter()
-                    .filter_map(|line| match line {
-                        LogLine::Entry(entry) => Some(entry.clone()),
+                    .filter_map(|line| match &line.1 {
+                        LogLine::Entry(entry) => Some((line.0, entry.clone())),
                         LogLine::Ignored(_) => None,
                     });
 
