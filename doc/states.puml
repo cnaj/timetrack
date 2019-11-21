@@ -4,17 +4,17 @@ skinparam shadowing false
 
 [*] --> Idle
 Idle --> DayTracking : on/clear tasks
-Idle --> DayTracking : continue
+Idle --> DayTracking : continue/persist pause timer
 Idle --> TaskActive : start
 
-DayTracking --> Idle : off
+DayTracking --> Idle : off/persist stopwatch\n start pause timer
 DayTracking --> TaskActive : start
 
 TaskActive --> TaskActive : start
 TaskActive --> DayTracking : stop/persist stopwatch
 TaskActive --> DayTracking : cancel
 
-TaskActive --> Idle : off/persist stopwatch
+TaskActive --> Idle : off/persist stopwatch\n start pause timer
 
 TaskActive : entry/start stopwatch
 TaskActive : exit/stop stopwatch
