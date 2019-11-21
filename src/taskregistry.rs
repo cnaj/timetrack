@@ -3,11 +3,24 @@ use crate::timelog::{LogEvent, TimelogEntry};
 use chrono::{DateTime, FixedOffset};
 use std::collections::HashMap;
 use std::time::Duration;
+use std::fmt;
+use std::fmt::{Formatter, Error};
 
 #[derive(Debug, Clone)]
 pub struct Task {
     name: String,
     duration: Duration,
+}
+
+impl fmt::Display for Task {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
+        let secs = self.duration.as_secs();
+        let s = secs % 60;
+        let mins = secs / 60;
+        let m = mins % 60;
+        let h = mins / 60;
+        write!(f, "{:02}:{:02}:{:02}\t{}", h, m, s, self.name)
+    }
 }
 
 #[derive(Eq, PartialEq, Debug, Copy, Clone)]
