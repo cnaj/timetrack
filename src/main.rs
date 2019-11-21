@@ -29,8 +29,8 @@ fn print_lines(path: &str) -> Result<(), String> {
     for line in lines {
         match line {
             Ok(entry) => {
-                match entry {
-                    LogLine::Entry(entry) => {
+                match &entry {
+                    (_, LogLine::Entry(entry)) => {
                         if let LogEvent::On = entry.event {
                             last_entry = None;
                         }
@@ -42,9 +42,9 @@ fn print_lines(path: &str) -> Result<(), String> {
                             }
                             None => println!("Start of new day"),
                         }
-                        last_entry = Some(entry);
+                        last_entry = Some(entry.clone());
                     }
-                    LogLine::Ignored(_) => println!(),
+                    (_, LogLine::Ignored(_)) => println!(),
                 }
             }
             Err(err) => println!("Error: {}", err),
@@ -58,8 +58,8 @@ fn gather_tasks(path: &str) -> Result<(), String> {
 
     let lines = lines.filter_map(|res| match res {
         Ok(line) => match line {
-            LogLine::Entry(entry) => Some(Ok(entry)),
-            LogLine::Ignored(_) => None,
+            (_, LogLine::Entry(entry)) => Some(Ok(entry)),
+            (_, LogLine::Ignored(_)) => None,
         },
         Err(err) => Some(Err(err)),
     });

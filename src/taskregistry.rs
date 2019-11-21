@@ -44,6 +44,7 @@ impl TaskRegistryBuilder {
                 LogEvent::Start(name) => {
                     self.add_time_to_task("Pause", &entry.time)?;
                     self.start_task(&entry.time, name);
+                    self.current_task_name = Some(name.clone());
                     TaskActive
                 }
                 _ => {
@@ -62,6 +63,7 @@ impl TaskRegistryBuilder {
                 LogEvent::Start(name) => {
                     self.add_time_to_task("n/n", &entry.time)?;
                     self.start_task(&entry.time, name);
+                    self.current_task_name = Some(name.clone());
                     TaskActive
                 }
                 _ => {
@@ -74,17 +76,35 @@ impl TaskRegistryBuilder {
             TaskActive => match &entry.event {
                 LogEvent::Stop => {
                     self.add_time_to_current_task(&entry.time)?;
+                    self.current_task_name = None;
                     self.start_time = Some(entry.time);
                     DayTracking
                 }
                 LogEvent::Off => {
                     self.add_time_to_current_task(&entry.time)?;
+                    self.current_task_name = None;
                     self.start_time = Some(entry.time);
                     Idle
                 }
                 LogEvent::Start(name) => {
                     self.add_time_to_current_task(&entry.time)?;
+                    self.current_task_name = None;
                     self.start_task(&entry.time, name);
+                    self.current_task_name = Some(name.to_owned());
+                    TaskActive
+                }
+                LogEvent::Rename { to, from } => {
+                    if from.is_some() {
+                        return Err(format!("Renaming other tasks not implemented yet"));
+                    }
+                    let name = self.current_task_name.as_ref().ok_or(format!("No current task name set while renaming"))?;
+                    let i = self
+                        .names
+                        .remove(name.as_str())
+                        .ok_or(format!("Couldn't find task name '{}' while renaming", name))?;
+                    self.names.insert(to.to_owned(), i);
+                    self.tasks.get_mut(i).unwrap().name = to.to_owned();
+                    self.current_task_name = Some(to.to_owned());
                     TaskActive
                 }
                 _ => {
@@ -115,8 +135,8 @@ impl TaskRegistryBuilder {
     fn add_time_to_task(&mut self, name: &str, time: &DateTime<FixedOffset>) -> Result<(), String> {
         let time_diff = *time
             - self
-                .start_time
-                .ok_or(format!("Invalid state: No start time recorded"))?;
+            .start_time
+            .ok_or(format!("Invalid state: No start time recorded"))?;
         let duration: Duration = time_diff
             .to_std()
             .map_err(|e| format!("Non-continuous timestamp: {}", e))?;
@@ -151,7 +171,7 @@ pub struct TaskRegistry {
 }
 
 impl TaskRegistry {
-    pub fn build<I: Iterator<Item = (usize, TimelogEntry)>>(
+    pub fn build<I: Iterator<Item=(usize, TimelogEntry)>>(
         entries: I,
     ) -> Result<TaskRegistry, String> {
         let mut builder = TaskRegistryBuilder {
@@ -165,7 +185,7 @@ impl TaskRegistry {
         for entry in entries {
             builder
                 .add_entry(&entry.1)
-                .map_err(|e| format!("{} (in line {})", e, entry.0))?;
+                .map_err(|e| format!("{} (while processing {:?} in line {})", e, entry.1, entry.0))?;
         }
 
         Ok(TaskRegistry {

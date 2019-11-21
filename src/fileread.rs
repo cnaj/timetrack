@@ -26,15 +26,18 @@ impl LogLine {
 
 pub struct LogLines {
     lines: io::Lines<io::BufReader<File>>,
+    line_count: usize,
 }
 
 impl Iterator for LogLines {
-    type Item = Result<LogLine, String>;
+    type Item = Result<(usize, LogLine), String>;
 
     fn next(&mut self) -> Option<Self::Item> {
+        self.line_count += 1;
         self.lines.next().map(|line| {
             line.map_err(|err| format!("Could not read line: {}", err))
                 .and_then(|line| LogLine::from_str(line.as_str()))
+                .map(|line| (self.line_count, line))
         })
     }
 }
@@ -47,7 +50,6 @@ pub struct DayCollection {
 
 pub struct DayCollector {
     log_lines: LogLines,
-    line_count: usize,
     done: bool,
     buffer: Vec<(usize, LogLine)>,
     lookahead: usize,
@@ -58,7 +60,6 @@ impl DayCollector {
     pub fn new(log_lines: LogLines) -> DayCollector {
         DayCollector {
             log_lines,
-            line_count: 0,
             done: false,
             buffer: Vec::new(),
             lookahead: 0,
@@ -90,19 +91,19 @@ impl Iterator for DayCollector {
                     }
                 }
                 Some(line) => {
-                    self.line_count += 1;
                     match line {
                         Err(err) => {
                             self.done = true;
                             return Some(Err(format!("Input error: {}", err)));
                         }
                         Ok(line) => {
-                            self.buffer.push((self.line_count, line.clone()));
+                            self.buffer.push(line.clone());
                             match &line {
-                                LogLine::Entry(entry) => match entry.event {
+                                (_, LogLine::Entry(entry)) => match entry.event {
                                     LogEvent::On => {
                                         if self.start.is_none() {
                                             self.start = Some(entry.time.clone());
+                                            self.lookahead = 0;
                                         } else {
                                             let start = self.start.unwrap();
                                             let len = self.buffer.len() - self.lookahead - 1;
@@ -119,7 +120,7 @@ impl Iterator for DayCollector {
                                     }
                                     _ => {}
                                 },
-                                LogLine::Ignored(line) => {
+                                (_, LogLine::Ignored(line)) => {
                                     if self.start.is_none()
                                         || self.lookahead > 0
                                         || !line.is_empty()
@@ -137,11 +138,12 @@ impl Iterator for DayCollector {
 }
 
 pub fn read_log_lines<P>(filename: P) -> io::Result<LogLines>
-where
-    P: AsRef<Path>,
+    where
+        P: AsRef<Path>,
 {
     let file = File::open(filename)?;
     Ok(LogLines {
         lines: io::BufReader::new(file).lines(),
+        line_count: 0,
     })
 }
