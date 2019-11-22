@@ -20,7 +20,7 @@ pub struct TimelogEntry {
 
 #[allow(dead_code)]
 impl TimelogEntry {
-    fn new(time: &DateTime<FixedOffset>, event: LogEvent) -> TimelogEntry {
+    pub fn new(time: &DateTime<FixedOffset>, event: LogEvent) -> TimelogEntry {
         TimelogEntry { time: *time, event }
     }
 

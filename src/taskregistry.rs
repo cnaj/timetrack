@@ -1,6 +1,6 @@
 use crate::taskregistry::State::{DayTracking, Idle, TaskActive};
 use crate::timelog::{LogEvent, TimelogEntry};
-use chrono::{DateTime, FixedOffset};
+use chrono::{DateTime, FixedOffset, Local};
 use std::collections::HashMap;
 use std::time::Duration;
 use std::fmt;
@@ -199,6 +199,11 @@ impl TaskRegistry {
             builder
                 .add_entry(&entry.1)
                 .map_err(|e| format!("{} (while processing {:?} in line {})", e, entry.1, entry.0))?;
+        }
+
+        if builder.state != Idle {
+            let now = Local::now();
+            builder.add_entry(&TimelogEntry::new(&now.into(), LogEvent::Off))?;
         }
 
         Ok(TaskRegistry {
