@@ -34,7 +34,7 @@ pub struct LogLines<T>
 impl<T> LogLines<T>
     where T: Iterator<Item=io::Result<String>>
 {
-    fn new(src: T) -> LogLines<T> {
+    pub fn new(src: T) -> LogLines<T> {
         LogLines { lines: src, line_count: 0 }
     }
 }

@@ -6,10 +6,16 @@ use std::time::Duration;
 use std::fmt;
 use std::fmt::{Formatter, Error};
 
-#[derive(Debug, Clone)]
+#[derive(Eq, PartialEq, Hash, Debug, Clone)]
 pub struct Task {
     name: String,
     duration: Duration,
+}
+
+impl Task {
+    pub fn new(name: impl ToString, duration_mins: u64) -> Task {
+        Task { name: name.to_string(), duration: Duration::from_secs(duration_mins * 60) }
+    }
 }
 
 impl fmt::Display for Task {
