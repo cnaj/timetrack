@@ -24,12 +24,24 @@ impl LogLine {
     }
 }
 
-pub struct LogLines {
-    lines: io::Lines<io::BufReader<File>>,
+pub struct LogLines<T>
+    where T: Iterator<Item=io::Result<String>>
+{
+    lines: T,
     line_count: usize,
 }
 
-impl Iterator for LogLines {
+impl<T> LogLines<T>
+    where T: Iterator<Item=io::Result<String>>
+{
+    fn new(src: T) -> LogLines<T> {
+        LogLines { lines: src, line_count: 0 }
+    }
+}
+
+impl<T> Iterator for LogLines<T>
+    where T: Iterator<Item=io::Result<String>>
+{
     type Item = Result<(usize, LogLine), String>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -48,16 +60,20 @@ pub struct DayCollection {
     pub lines: Vec<(usize, LogLine)>,
 }
 
-pub struct DayCollector {
-    log_lines: LogLines,
+pub struct DayCollector<T>
+    where T: Iterator<Item=io::Result<String>>
+{
+    log_lines: LogLines<T>,
     done: bool,
     buffer: Vec<(usize, LogLine)>,
     lookahead: usize,
     start: Option<DateTime<FixedOffset>>,
 }
 
-impl DayCollector {
-    pub fn new(log_lines: LogLines) -> DayCollector {
+impl<T> DayCollector<T>
+    where T: Iterator<Item=io::Result<String>>
+{
+    pub fn new(log_lines: LogLines<T>) -> DayCollector<T> {
         DayCollector {
             log_lines,
             done: false,
@@ -68,7 +84,9 @@ impl DayCollector {
     }
 }
 
-impl Iterator for DayCollector {
+impl<T> Iterator for DayCollector<T>
+    where T: Iterator<Item=io::Result<String>>
+{
     type Item = Result<DayCollection, String>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -137,13 +155,9 @@ impl Iterator for DayCollector {
     }
 }
 
-pub fn read_log_lines<P>(filename: P) -> io::Result<LogLines>
-    where
-        P: AsRef<Path>,
+pub fn read_log_lines<P>(filename: P) -> io::Result<LogLines<io::Lines<io::BufReader<File>>>>
+    where P: AsRef<Path>
 {
     let file = File::open(filename)?;
-    Ok(LogLines {
-        lines: io::BufReader::new(file).lines(),
-        line_count: 0,
-    })
+    Ok(LogLines::new(io::BufReader::new(file).lines()))
 }
