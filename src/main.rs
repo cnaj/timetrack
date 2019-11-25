@@ -1,14 +1,16 @@
 #![allow(dead_code)]
 
+use std::env;
+use std::ops::Sub;
+use std::time::Duration;
+
+use crate::fileread::{DayCollector, LogLine, read_log_lines};
+use crate::taskregistry::TaskRegistry;
+use crate::timelog::{LogEvent, TimelogEntry};
+
 pub mod fileread;
 pub mod taskregistry;
 pub mod timelog;
-
-use std::env;
-use std::ops::Sub;
-use crate::fileread::{read_log_lines, LogLine, DayCollector};
-use crate::timelog::{LogEvent, TimelogEntry};
-use crate::taskregistry::TaskRegistry;
 
 fn main() -> Result<(), String> {
     let args: Vec<String> = env::args().collect();
@@ -108,6 +110,14 @@ fn gather_day_tasks(path: &str) -> Result<(), String> {
                 for task in registry.get_tasks() {
                     println!("{}", task);
                 }
+
+                let mut work_time = Duration::from_secs(0);
+                for task in registry.get_tasks().iter().skip(1) { // skip Pause task
+                    work_time += task.duration;
+                }
+                print!("Work time: ");
+                print_work_time(&mut work_time);
+                println!();
                 println!();
             }
             None => {}
@@ -115,4 +125,13 @@ fn gather_day_tasks(path: &str) -> Result<(), String> {
     }
 
     Ok(())
+}
+
+fn print_work_time(work_time: &Duration) {
+    let secs = work_time.as_secs();
+    let s = secs % 60;
+    let mins = secs / 60;
+    let m = mins % 60;
+    let h = mins / 60;
+    print!("{:02}:{:02}:{:02}", h, m, s);
 }

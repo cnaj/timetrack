@@ -1,6 +1,6 @@
 use crate::taskregistry::State::{DayTracking, Idle, TaskActive};
 use crate::timelog::{LogEvent, TimelogEntry};
-use chrono::{DateTime, FixedOffset, Local};
+use chrono::{DateTime, FixedOffset, Local, Timelike};
 use std::collections::HashMap;
 use std::time::Duration;
 use std::fmt;
@@ -8,8 +8,8 @@ use std::fmt::{Formatter, Error};
 
 #[derive(Eq, PartialEq, Hash, Debug, Clone)]
 pub struct Task {
-    name: String,
-    duration: Duration,
+    pub name: String,
+    pub duration: Duration,
 }
 
 impl Task {
@@ -208,7 +208,9 @@ impl TaskRegistry {
         }
 
         if builder.state != Idle {
-            let now = Local::now();
+            let now = Local::now()
+                .with_second(0).unwrap()
+                .with_nanosecond(0).unwrap();
             builder.add_entry(&TimelogEntry::new(&now.into(), LogEvent::Off))?;
         }
 
