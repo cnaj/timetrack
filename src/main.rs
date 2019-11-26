@@ -4,6 +4,8 @@ use std::env;
 use std::ops::Sub;
 use std::time::Duration;
 
+use chrono::{DateTime, FixedOffset};
+
 use crate::fileread::{DayCollector, LogLine, read_log_lines};
 use crate::taskregistry::TaskRegistry;
 use crate::timelog::{LogEvent, TimelogEntry};
@@ -115,9 +117,24 @@ fn gather_day_tasks(path: &str) -> Result<(), String> {
                 for task in registry.get_tasks().iter().skip(1) { // skip Pause task
                     work_time += task.duration;
                 }
-                print!("Work time: ");
-                print_work_time(&mut work_time);
                 println!();
+
+                println!("-- Work time: {}", format_duration(&mut work_time));
+                println!();
+
+                println!("-- Work hours:");
+                println!("on   \toff  \ttime \tpause");
+                let mut last_off: Option<DateTime<FixedOffset>> = None;
+                for (on, off) in registry.get_work_times() {
+                    let delta = format_duration(&off.sub(*on).to_std().unwrap());
+                    let pause = match last_off {
+                        Some(last_off) => format_duration(&on.sub(last_off).to_std().unwrap()),
+                        None => "".to_string()
+                    };
+                    last_off = Some(*off);
+                    println!("{}\t{}\t{}\t{}", on.format("%H:%M"), off.format("%H:%M"), delta, pause);
+                }
+
                 println!();
             }
             None => {}
@@ -127,11 +144,10 @@ fn gather_day_tasks(path: &str) -> Result<(), String> {
     Ok(())
 }
 
-fn print_work_time(work_time: &Duration) {
+fn format_duration(work_time: &Duration) -> String {
     let secs = work_time.as_secs();
-    let s = secs % 60;
     let mins = secs / 60;
     let m = mins % 60;
     let h = mins / 60;
-    print!("{:02}:{:02}:{:02}", h, m, s);
+    format!("{:02}:{:02}", h, m)
 }

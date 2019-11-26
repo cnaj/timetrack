@@ -1,10 +1,12 @@
+use std::collections::HashMap;
+use std::fmt;
+use std::fmt::{Error, Formatter};
+use std::time::Duration;
+
+use chrono::{DateTime, FixedOffset, Local, Timelike};
+
 use crate::taskregistry::State::{DayTracking, Idle, TaskActive};
 use crate::timelog::{LogEvent, TimelogEntry};
-use chrono::{DateTime, FixedOffset, Local, Timelike};
-use std::collections::HashMap;
-use std::time::Duration;
-use std::fmt;
-use std::fmt::{Formatter, Error};
 
 #[derive(Eq, PartialEq, Hash, Debug, Clone)]
 pub struct Task {
@@ -21,11 +23,10 @@ impl Task {
 impl fmt::Display for Task {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
         let secs = self.duration.as_secs();
-        let s = secs % 60;
         let mins = secs / 60;
         let m = mins % 60;
         let h = mins / 60;
-        write!(f, "{:02}:{:02}:{:02}\t{}", h, m, s, self.name)
+        write!(f, "{:02}:{:02}\t{}", h, m, self.name)
     }
 }
 
@@ -42,6 +43,8 @@ struct TaskRegistryBuilder {
     start_time: Option<DateTime<FixedOffset>>,
     state: State,
     current_task_name: Option<String>,
+    work_start_time: Option<DateTime<FixedOffset>>,
+    work_times: Vec<(DateTime<FixedOffset>, DateTime<FixedOffset>)>,
 }
 
 impl TaskRegistryBuilder {
@@ -49,6 +52,7 @@ impl TaskRegistryBuilder {
         self.state = match self.state {
             Idle => match &entry.event {
                 LogEvent::On => {
+                    self.work_start_time = Some(entry.time);
                     self.tasks.clear();
                     self.names.clear();
                     self.start_task(&entry.time, "Pause");
@@ -56,11 +60,13 @@ impl TaskRegistryBuilder {
                     DayTracking
                 }
                 LogEvent::Continue => {
+                    self.work_start_time = Some(entry.time);
                     self.add_time_to_task("Pause", &entry.time)?;
                     self.start_time = Some(entry.time);
                     DayTracking
                 }
                 LogEvent::Start(name) => {
+                    self.work_start_time = Some(entry.time);
                     self.add_time_to_task("Pause", &entry.time)?;
                     self.start_task(&entry.time, name);
                     self.current_task_name = Some(name.clone());
@@ -75,6 +81,8 @@ impl TaskRegistryBuilder {
             },
             DayTracking => match &entry.event {
                 LogEvent::Off => {
+                    self.work_times.push((self.work_start_time.unwrap(), entry.time));
+                    self.work_start_time = None;
                     self.add_time_to_task("n/n", &entry.time)?;
                     self.start_time = Some(entry.time);
                     Idle
@@ -100,6 +108,8 @@ impl TaskRegistryBuilder {
                     DayTracking
                 }
                 LogEvent::Off => {
+                    self.work_times.push((self.work_start_time.unwrap(), entry.time));
+                    self.work_start_time = None;
                     self.add_time_to_current_task(&entry.time)?;
                     self.current_task_name = None;
                     self.start_time = Some(entry.time);
@@ -187,6 +197,7 @@ impl TaskRegistryBuilder {
 pub struct TaskRegistry {
     tasks: Vec<Task>,
     names: HashMap<String, usize>,
+    work_times: Vec<(DateTime<FixedOffset>, DateTime<FixedOffset>)>,
 }
 
 impl TaskRegistry {
@@ -199,6 +210,8 @@ impl TaskRegistry {
             start_time: None,
             state: Idle,
             current_task_name: None,
+            work_start_time: None,
+            work_times: Vec::new(),
         };
 
         for entry in entries {
@@ -217,10 +230,15 @@ impl TaskRegistry {
         Ok(TaskRegistry {
             tasks: builder.tasks,
             names: builder.names,
+            work_times: builder.work_times,
         })
     }
 
     pub fn get_tasks(&self) -> &[Task] {
         self.tasks.as_slice()
+    }
+
+    pub fn get_work_times(&self) -> &[(DateTime<FixedOffset>, DateTime<FixedOffset>)] {
+        self.work_times.as_slice()
     }
 }
