@@ -11,6 +11,13 @@ mod tests {
     use crate::fileread::{DayCollector, LogLine, LogLines};
     use crate::taskregistry::{Task, TaskRegistry};
 
+    const BLANK_LINES: &'static str = r#"
+
+"#;
+
+    const COMMENT_LINE: &'static str = r#"# This is a comment
+"#;
+
     const DAY_1: &'static str = r#"# First line comment
 2019-11-21T07:30+0100	on
 2019-11-21T07:30+0100	start	BACKEND-errors
@@ -22,8 +29,7 @@ mod tests {
 2019-11-21T17:00+0100	off
 "#;
 
-    const DAY_2: &'static str = r#"# First line comment
-2019-11-22T07:00+0100	on
+    const DAY_2: &'static str = r#"2019-11-22T07:00+0100	on
 2019-11-22T07:02+0100	start	BACKEND-error-handling
 2019-11-22T07:27+0100	start	BACKEND-input
 2019-11-22T07:30+0100	rename	BACKEND-input-parsing
@@ -42,6 +48,58 @@ mod tests {
 2019-11-22T14:06+0100	start	CHORE - instable tests
 2019-11-22T15:24+0100	off
 "#;
+
+    #[test]
+    fn test_split_days() {
+        let mut src = String::new();
+        src.push_str(DAY_1);
+        src.push_str(DAY_2);
+
+        let lines = src.lines()
+            .map(|line| Ok(line.to_owned()));
+        let lines = LogLines::new(lines);
+
+        let day_collector = DayCollector::new(lines);
+
+        let days: Vec<_> = day_collector.collect();
+        assert_eq!(days.len(), 2);
+
+        let day1 = days[0].as_ref().unwrap();
+        assert_eq!(day1.start, Some(DateTime::parse_from_rfc3339("2019-11-21T07:30:00+01:00").unwrap()));
+        assert_eq!(day1.lines.len(), 9);
+
+        let day2 = days[1].as_ref().unwrap();
+        assert_eq!(day2.start, Some(DateTime::parse_from_rfc3339("2019-11-22T07:00:00+01:00").unwrap()));
+        assert_eq!(day2.lines.len(), 18);
+    }
+
+    #[test]
+    fn test_split_days_with_blank() {
+        let mut src = String::new();
+        src.push_str(BLANK_LINES);
+        src.push_str(DAY_1);
+        src.push_str(BLANK_LINES);
+        src.push_str(COMMENT_LINE);
+        src.push_str(DAY_2);
+        src.push_str(BLANK_LINES);
+
+        let lines = src.lines()
+            .map(|line| Ok(line.to_owned()));
+        let lines = LogLines::new(lines);
+
+        let day_collector = DayCollector::new(lines);
+
+        let days: Vec<_> = day_collector.collect();
+        assert_eq!(days.len(), 2);
+
+        let day1 = days[0].as_ref().unwrap();
+        assert_eq!(day1.start, Some(DateTime::parse_from_rfc3339("2019-11-21T07:30:00+01:00").unwrap()));
+        assert_eq!(day1.lines.len(), 13);
+
+        let day2 = days[1].as_ref().unwrap();
+        assert_eq!(day2.start, Some(DateTime::parse_from_rfc3339("2019-11-22T07:00:00+01:00").unwrap()));
+        assert_eq!(day2.lines.len(), 21);
+    }
 
     #[test]
     fn test_day_1_tasks() {
