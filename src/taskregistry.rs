@@ -123,17 +123,19 @@ impl TaskRegistryBuilder {
                     TaskActive
                 }
                 LogEvent::Rename { to, from } => {
-                    if from.is_some() {
-                        return Err(format!("Renaming other tasks not implemented yet"));
-                    }
-                    let name = self.current_task_name.as_ref().ok_or(format!("No current task name set while renaming"))?;
+                    let name =
+                        from.as_ref()
+                            .or(self.current_task_name.as_ref())
+                            .ok_or(format!("No current task name set while renaming"))?;
                     let i = self
                         .names
                         .remove(name.as_str())
                         .ok_or(format!("Couldn't find task name '{}' while renaming", name))?;
                     self.names.insert(to.to_owned(), i);
                     self.tasks.get_mut(i).unwrap().name = to.to_owned();
-                    self.current_task_name = Some(to.to_owned());
+                    if from.is_none() {
+                        self.current_task_name = Some(to.to_owned());
+                    }
                     TaskActive
                 }
                 _ => {

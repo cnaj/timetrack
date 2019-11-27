@@ -6,14 +6,27 @@ pub mod timelog;
 
 #[cfg(test)]
 mod tests {
-    use crate::fileread::{LogLines, DayCollector, LogLine};
-    use crate::taskregistry::{TaskRegistry, Task};
     use chrono::DateTime;
 
-    const DAY_0: &'static str = r#"# First line comment
+    use crate::fileread::{DayCollector, LogLine, LogLines};
+    use crate::taskregistry::{Task, TaskRegistry};
+
+    const DAY_1: &'static str = r#"# First line comment
+2019-11-21T07:30+0100	on
+2019-11-21T07:30+0100	start	BACKEND-errors
+2019-11-21T09:45+0100	off
+2019-11-21T10:20+0100	start	BACKEND-input-parsing
+2019-11-21T10:32+0100	rename	BACKEND-error-handling	BACKEND-errors
+2019-11-21T11:40+0100	off
+2019-11-21T13:00+0100	start	BACKEND-input-parsing
+2019-11-21T17:00+0100	off
+"#;
+
+    const DAY_2: &'static str = r#"# First line comment
 2019-11-22T07:00+0100	on
 2019-11-22T07:02+0100	start	BACKEND-error-handling
-2019-11-22T07:27+0100	start	BACKEND-input-parsing
+2019-11-22T07:27+0100	start	BACKEND-input
+2019-11-22T07:30+0100	rename	BACKEND-input-parsing
 2019-11-22T09:14+0100	off
 2019-11-22T09:20+0100	start	BACKEND-input-parsing
 2019-11-22T09:32+0100	off
@@ -31,8 +44,39 @@ mod tests {
 "#;
 
     #[test]
-    fn test_day_tasks() {
-        let lines = DAY_0.lines()
+    fn test_day_1_tasks() {
+        let lines = DAY_1.lines()
+            .map(|line| Ok(line.to_owned()));
+        let lines = LogLines::new(lines);
+
+        let day_collector = DayCollector::new(lines);
+
+        let days: Vec<_> = day_collector.collect();
+        assert_eq!(days.len(), 1);
+
+        let day = days[0].as_ref().unwrap();
+        assert_eq!(day.start, Some(DateTime::parse_from_rfc3339("2019-11-21T07:30:00+01:00").unwrap()));
+
+        let it = day.lines.iter()
+            .filter_map(|line| match &line.1 {
+                LogLine::Entry(entry) => Some((line.0, entry.clone())),
+                LogLine::Ignored(_) => None,
+            });
+
+        let registry = TaskRegistry::build(it).unwrap();
+
+        let expected = [
+            Task::new("Pause", 115),
+            Task::new("n/n", 0),
+            Task::new("BACKEND-error-handling", 135),
+            Task::new("BACKEND-input-parsing", 320),
+        ];
+        assert_eq!(registry.get_tasks(), expected.as_ref());
+    }
+
+    #[test]
+    fn test_day_2_tasks() {
+        let lines = DAY_2.lines()
             .map(|line| Ok(line.to_owned()));
         let lines = LogLines::new(lines);
 
