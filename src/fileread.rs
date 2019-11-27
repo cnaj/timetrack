@@ -1,11 +1,13 @@
 use std::fs::File;
 use std::io;
 use std::io::BufRead;
+use std::iter::Enumerate;
 use std::path::Path;
+
+use chrono::{DateTime, FixedOffset};
 
 use crate::timelog::LogEvent;
 use crate::timelog::TimelogEntry;
-use chrono::{DateTime, FixedOffset};
 
 #[derive(Eq, PartialEq, Debug, Clone)]
 pub enum LogLine {
@@ -28,28 +30,26 @@ pub struct LogLines<T>
     where T: Iterator<Item=io::Result<String>>
 {
     lines: T,
-    line_count: usize,
 }
 
 impl<T> LogLines<T>
     where T: Iterator<Item=io::Result<String>>
 {
     pub fn new(src: T) -> LogLines<T> {
-        LogLines { lines: src, line_count: 0 }
+        LogLines { lines: src }
     }
 }
 
 impl<T> Iterator for LogLines<T>
     where T: Iterator<Item=io::Result<String>>
 {
-    type Item = Result<(usize, LogLine), String>;
+    type Item = Result<LogLine, String>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.line_count += 1;
         self.lines.next().map(|line| {
             line.map_err(|err| format!("Could not read line: {}", err))
                 .and_then(|line| LogLine::from_str(line.as_str()))
-                .map(|line| (self.line_count, line))
+                .map(|line| line)
         })
     }
 }
@@ -63,7 +63,7 @@ pub struct DayCollection {
 pub struct DayCollector<T>
     where T: Iterator<Item=io::Result<String>>
 {
-    log_lines: LogLines<T>,
+    log_lines: Enumerate<LogLines<T>>,
     done: bool,
     buffer: Vec<(usize, LogLine)>,
     lookahead: usize,
@@ -75,7 +75,7 @@ impl<T> DayCollector<T>
 {
     pub fn new(log_lines: LogLines<T>) -> DayCollector<T> {
         DayCollector {
-            log_lines,
+            log_lines: log_lines.enumerate(),
             done: false,
             buffer: Vec::new(),
             lookahead: 0,
@@ -110,14 +110,14 @@ impl<T> Iterator for DayCollector<T>
                 }
                 Some(line) => {
                     match line {
-                        Err(err) => {
+                        (_, Err(err)) => {
                             self.done = true;
                             return Some(Err(format!("Input error: {}", err)));
                         }
-                        Ok(line) => {
-                            self.buffer.push(line.clone());
-                            match &line {
-                                (_, LogLine::Entry(entry)) => match entry.event {
+                        (n, Ok(log_line)) => {
+                            self.buffer.push((n + 1, log_line.clone()));
+                            match log_line {
+                                LogLine::Entry(entry) => match entry.event {
                                     LogEvent::On => {
                                         if self.start.is_none() {
                                             self.start = Some(entry.time.clone());
@@ -138,7 +138,7 @@ impl<T> Iterator for DayCollector<T>
                                     }
                                     _ => {}
                                 },
-                                (_, LogLine::Ignored(line)) => {
+                                LogLine::Ignored(line) => {
                                     if self.start.is_none()
                                         || self.lookahead > 0
                                         || !line.is_empty()

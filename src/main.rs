@@ -30,11 +30,11 @@ fn print_lines(path: &str) -> Result<(), String> {
     let lines = read_log_lines(path).map_err(|err| format!("Could not read file: {}", err))?;
 
     let mut last_entry: Option<TimelogEntry> = None;
-    for line in lines {
+    for line in lines.enumerate() {
         match line {
-            Ok(entry) => {
+            (_, Ok(entry)) => {
                 match &entry {
-                    (_, LogLine::Entry(entry)) => {
+                    LogLine::Entry(entry) => {
                         if let LogEvent::On = entry.event {
                             last_entry = None;
                         }
@@ -48,10 +48,10 @@ fn print_lines(path: &str) -> Result<(), String> {
                         }
                         last_entry = Some(entry.clone());
                     }
-                    (_, LogLine::Ignored(_)) => println!(),
+                    LogLine::Ignored(_) => println!(),
                 }
             }
-            Err(err) => println!("Error: {}", err),
+            (n, Err(err)) => println!("Error (line {}): {}", n, err),
         }
     }
     Ok(())
@@ -62,8 +62,8 @@ fn gather_tasks(path: &str) -> Result<(), String> {
 
     let lines = lines.filter_map(|res| match res {
         Ok(line) => match line {
-            (_, LogLine::Entry(entry)) => Some(Ok(entry)),
-            (_, LogLine::Ignored(_)) => None,
+            LogLine::Entry(entry) => Some(Ok(entry)),
+            LogLine::Ignored(_) => None,
         },
         Err(err) => Some(Err(err)),
     });
