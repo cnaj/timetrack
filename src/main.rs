@@ -6,13 +6,9 @@ use std::time::Duration;
 
 use chrono::{DateTime, FixedOffset};
 
-use crate::fileread::{DayCollector, LogLine, read_log_lines};
-use crate::taskregistry::TaskRegistry;
-use crate::timelog::{LogEvent, TimelogEntry};
-
-pub mod fileread;
-pub mod taskregistry;
-pub mod timelog;
+use timetrack::fileread::{DayCollector, LogLine, read_log_lines};
+use timetrack::taskregistry::TaskRegistry;
+use timetrack::timelog::{LogEvent, TimelogEntry};
 
 fn main() -> Result<(), String> {
     let args: Vec<String> = env::args().collect();
