@@ -7,6 +7,7 @@ use chrono::{DateTime, FixedOffset, Local, Timelike};
 
 use crate::taskregistry::State::{DayTracking, Idle, TaskActive};
 use crate::timelog::{LogEvent, TimelogEntry};
+use std::mem::replace;
 
 #[derive(Eq, PartialEq, Hash, Debug, Clone)]
 pub struct Task {
@@ -38,23 +39,30 @@ enum State {
 }
 
 struct TaskRegistryBuilder {
-    tasks: Vec<Task>,
-    names: HashMap<String, usize>,
     start_time: Option<DateTime<FixedOffset>>,
     state: State,
     current_task_name: Option<String>,
     work_start_time: Option<DateTime<FixedOffset>>,
-    work_times: Vec<(DateTime<FixedOffset>, DateTime<FixedOffset>)>,
+    task_registry: TaskRegistry,
 }
 
 impl TaskRegistryBuilder {
+    fn new() -> TaskRegistryBuilder {
+        TaskRegistryBuilder {
+            start_time: None,
+            state: Idle,
+            current_task_name: None,
+            work_start_time: None,
+            task_registry: TaskRegistry::new(),
+        }
+    }
+
     fn add_entry(&mut self, entry: &TimelogEntry) -> Result<(), String> {
         self.state = match self.state {
             Idle => match &entry.event {
                 LogEvent::On => {
+                    replace(&mut self.task_registry, TaskRegistry::new());
                     self.work_start_time = Some(entry.time);
-                    self.tasks.clear();
-                    self.names.clear();
                     self.start_task(&entry.time, "Pause");
                     self.start_task(&entry.time, "n/n");
                     DayTracking
@@ -81,7 +89,7 @@ impl TaskRegistryBuilder {
             },
             DayTracking => match &entry.event {
                 LogEvent::Off => {
-                    self.work_times.push((self.work_start_time.unwrap(), entry.time));
+                    self.task_registry.add_work_time(self.work_start_time.unwrap(), entry.time);
                     self.work_start_time = None;
                     self.add_time_to_task("n/n", &entry.time)?;
                     self.start_time = Some(entry.time);
@@ -108,7 +116,7 @@ impl TaskRegistryBuilder {
                     DayTracking
                 }
                 LogEvent::Off => {
-                    self.work_times.push((self.work_start_time.unwrap(), entry.time));
+                    self.task_registry.add_work_time(self.work_start_time.unwrap(), entry.time);
                     self.work_start_time = None;
                     self.add_time_to_current_task(&entry.time)?;
                     self.current_task_name = None;
@@ -127,12 +135,7 @@ impl TaskRegistryBuilder {
                         from.as_ref()
                             .or(self.current_task_name.as_ref())
                             .ok_or(format!("No current task name set while renaming"))?;
-                    let i = self
-                        .names
-                        .remove(name.as_str())
-                        .ok_or(format!("Couldn't find task name '{}' while renaming", name))?;
-                    self.names.insert(to.to_owned(), i);
-                    self.tasks.get_mut(i).unwrap().name = to.to_owned();
+                    self.task_registry.rename_task(to, name)?;
                     if from.is_none() {
                         self.current_task_name = Some(to.to_owned());
                     }
@@ -171,27 +174,12 @@ impl TaskRegistryBuilder {
         let duration: Duration = time_diff
             .to_std()
             .map_err(|e| format!("Non-continuous timestamp: {}", e))?;
-        let i = self
-            .names
-            .get(name)
-            .ok_or(format!("Couldn't find task name '{}'", name))?;
-        self.tasks.get_mut(*i).unwrap().duration += duration;
-        Ok(())
+        self.task_registry.add_time_to_task(name, duration)
     }
 
-    fn start_task<T: ToString + AsRef<str>>(
-        &mut self,
-        time: &DateTime<FixedOffset>,
-        name: T,
-    ) -> () {
+    fn start_task<T: ToString + AsRef<str>>(&mut self, time: &DateTime<FixedOffset>, name: T) -> () {
         self.start_time = Some(*time);
-        if !self.names.contains_key(name.as_ref()) {
-            self.names.insert(name.to_string(), self.tasks.len());
-            self.tasks.push(Task {
-                name: name.to_string(),
-                duration: Duration::from_secs(0),
-            });
-        }
+        self.task_registry.add_task(name);
     }
 }
 
@@ -203,18 +191,18 @@ pub struct TaskRegistry {
 }
 
 impl TaskRegistry {
+    fn new() -> TaskRegistry {
+        TaskRegistry {
+            tasks: Vec::new(),
+            names: HashMap::new(),
+            work_times: Vec::new(),
+        }
+    }
+
     pub fn build<I: Iterator<Item=(usize, TimelogEntry)>>(
         entries: I,
     ) -> Result<TaskRegistry, String> {
-        let mut builder = TaskRegistryBuilder {
-            tasks: Vec::new(),
-            names: HashMap::new(),
-            start_time: None,
-            state: Idle,
-            current_task_name: None,
-            work_start_time: None,
-            work_times: Vec::new(),
-        };
+        let mut builder = TaskRegistryBuilder::new();
 
         for entry in entries {
             builder
@@ -230,9 +218,9 @@ impl TaskRegistry {
         }
 
         Ok(TaskRegistry {
-            tasks: builder.tasks,
-            names: builder.names,
-            work_times: builder.work_times,
+            tasks: builder.task_registry.tasks,
+            names: builder.task_registry.names,
+            work_times: builder.task_registry.work_times,
         })
     }
 
@@ -243,4 +231,38 @@ impl TaskRegistry {
     pub fn get_work_times(&self) -> &[(DateTime<FixedOffset>, DateTime<FixedOffset>)] {
         self.work_times.as_slice()
     }
+
+    fn add_time_to_task(&mut self, name: &str, time: Duration) -> Result<(), String> {
+        let i = self
+            .names
+            .get(name)
+            .ok_or(format!("Couldn't find task name '{}'", name))?;
+        self.tasks.get_mut(*i).unwrap().duration += time;
+        Ok(())
+    }
+
+    fn add_task<T: ToString + AsRef<str>>(&mut self, name: T) {
+        if !self.names.contains_key(name.as_ref()) {
+            self.names.insert(name.to_string(), self.tasks.len());
+            self.tasks.push(Task {
+                name: name.to_string(),
+                duration: Duration::from_secs(0),
+            });
+        }
+    }
+
+    fn rename_task(&mut self, to: &String, from: &String) -> Result<(), String> {
+        let i = self
+            .names
+            .remove(from.as_str())
+            .ok_or(format!("Couldn't find task name '{}' while renaming", from))?;
+        self.names.insert(to.to_owned(), i);
+        self.tasks.get_mut(i).unwrap().name = to.to_owned();
+        Ok(())
+    }
+
+    fn add_work_time(&mut self, from: DateTime<FixedOffset>, to: DateTime<FixedOffset>) {
+        self.work_times.push((from, to));
+    }
+
 }
