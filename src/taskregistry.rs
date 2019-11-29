@@ -1,14 +1,14 @@
 use std::collections::HashMap;
 use std::fmt;
 use std::fmt::{Error, Formatter};
+use std::mem::replace;
+use std::ops::Sub;
 use std::time::Duration;
 
 use chrono::{DateTime, FixedOffset, Local, Timelike};
 
 use crate::taskregistry::State::{DayTracking, Idle, TaskActive};
 use crate::timelog::{LogEvent, TimelogEntry};
-use std::mem::replace;
-use std::ops::Sub;
 
 #[derive(Eq, PartialEq, Hash, Debug, Clone)]
 pub struct Task {
@@ -18,7 +18,10 @@ pub struct Task {
 
 impl Task {
     pub fn new(name: impl ToString, duration_mins: u64) -> Task {
-        Task { name: name.to_string(), duration: Duration::from_secs(duration_mins * 60) }
+        Task {
+            name: name.to_string(),
+            duration: Duration::from_secs(duration_mins * 60),
+        }
     }
 }
 
@@ -130,10 +133,10 @@ impl TaskRegistryBuilder {
                     TaskActive
                 }
                 LogEvent::Rename { to, from } => {
-                    let name =
-                        from.as_ref()
-                            .or(self.current_task_name.as_ref())
-                            .ok_or(format!("No current task name set while renaming"))?;
+                    let name = from
+                        .as_ref()
+                        .or(self.current_task_name.as_ref())
+                        .ok_or(format!("No current task name set while renaming"))?;
                     self.task_registry.rename_task(to, name)?;
                     if from.is_none() {
                         self.current_task_name = Some(to.to_owned());
@@ -157,7 +160,8 @@ impl TaskRegistryBuilder {
     }
 
     fn stop_work_time(&mut self, entry: &TimelogEntry) {
-        self.task_registry.add_work_time(self.work_start_time.unwrap(), entry.time);
+        self.task_registry
+            .add_work_time(self.work_start_time.unwrap(), entry.time);
         self.work_start_time = None;
     }
 
@@ -185,7 +189,11 @@ impl TaskRegistryBuilder {
         self.task_registry.add_time_to_task(name, duration)
     }
 
-    fn start_task<T: ToString + AsRef<str>>(&mut self, time: &DateTime<FixedOffset>, name: T) -> () {
+    fn start_task<T: ToString + AsRef<str>>(
+        &mut self,
+        time: &DateTime<FixedOffset>,
+        name: T,
+    ) -> () {
         self.start_time = Some(*time);
         self.task_registry.add_task(name);
     }
@@ -215,15 +223,17 @@ impl TaskRegistry {
         let mut builder = TaskRegistryBuilder::new();
 
         for entry in entries {
-            builder
-                .add_entry(&entry.1)
-                .map_err(|e| format!("{} (while processing {:?} in line {})", e, entry.1, entry.0))?;
+            builder.add_entry(&entry.1).map_err(|e| {
+                format!("{} (while processing {:?} in line {})", e, entry.1, entry.0)
+            })?;
         }
 
         if builder.state != Idle {
             let now = Local::now()
-                .with_second(0).unwrap()
-                .with_nanosecond(0).unwrap();
+                .with_second(0)
+                .unwrap()
+                .with_nanosecond(0)
+                .unwrap();
             builder.add_entry(&TimelogEntry::new(&now.into(), LogEvent::Off))?;
         }
 
@@ -280,5 +290,4 @@ impl TaskRegistry {
         self.work_times.push((from, to));
         self.work_duration += to.sub(from).to_std().unwrap();
     }
-
 }

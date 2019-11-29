@@ -27,13 +27,15 @@ impl LogLine {
 }
 
 pub struct LogLines<T>
-    where T: Iterator<Item=io::Result<String>>
+    where
+        T: Iterator<Item=io::Result<String>>,
 {
     lines: T,
 }
 
 impl<T> LogLines<T>
-    where T: Iterator<Item=io::Result<String>>
+    where
+        T: Iterator<Item=io::Result<String>>,
 {
     pub fn new(src: T) -> LogLines<T> {
         LogLines { lines: src }
@@ -41,7 +43,8 @@ impl<T> LogLines<T>
 }
 
 impl<T> Iterator for LogLines<T>
-    where T: Iterator<Item=io::Result<String>>
+    where
+        T: Iterator<Item=io::Result<String>>,
 {
     type Item = Result<LogLine, String>;
 
@@ -61,7 +64,8 @@ pub struct DayCollection {
 }
 
 pub struct DayCollector<T>
-    where T: Iterator<Item=io::Result<String>>
+    where
+        T: Iterator<Item=io::Result<String>>,
 {
     log_lines: Enumerate<LogLines<T>>,
     done: bool,
@@ -71,7 +75,8 @@ pub struct DayCollector<T>
 }
 
 impl<T> DayCollector<T>
-    where T: Iterator<Item=io::Result<String>>
+    where
+        T: Iterator<Item=io::Result<String>>,
 {
     pub fn new(log_lines: LogLines<T>) -> DayCollector<T> {
         DayCollector {
@@ -85,7 +90,8 @@ impl<T> DayCollector<T>
 }
 
 impl<T> Iterator for DayCollector<T>
-    where T: Iterator<Item=io::Result<String>>
+    where
+        T: Iterator<Item=io::Result<String>>,
 {
     type Item = Result<DayCollection, String>;
 
@@ -108,55 +114,51 @@ impl<T> Iterator for DayCollector<T>
                         return None;
                     }
                 }
-                Some(line) => {
-                    match line {
-                        (_, Err(err)) => {
-                            self.done = true;
-                            return Some(Err(format!("Input error: {}", err)));
-                        }
-                        (n, Ok(log_line)) => {
-                            self.buffer.push((n + 1, log_line.clone()));
-                            match log_line {
-                                LogLine::Entry(entry) => match entry.event {
-                                    LogEvent::On => {
-                                        if self.start.is_none() {
-                                            self.start = Some(entry.time.clone());
-                                            self.lookahead = 0;
-                                        } else {
-                                            let start = self.start.unwrap();
-                                            let len = self.buffer.len() - self.lookahead - 1;
-                                            self.start = Some(entry.time.clone());
-                                            self.lookahead = 0;
-                                            let lines: Vec<(usize, LogLine)> =
-                                                self.buffer.drain(..len).collect();
-                                            let result = DayCollection {
-                                                start: Some(start),
-                                                lines,
-                                            };
-                                            return Some(Ok(result));
-                                        }
+                Some(line) => match line {
+                    (_, Err(err)) => {
+                        self.done = true;
+                        return Some(Err(format!("Input error: {}", err)));
+                    }
+                    (n, Ok(log_line)) => {
+                        self.buffer.push((n + 1, log_line.clone()));
+                        match log_line {
+                            LogLine::Entry(entry) => match entry.event {
+                                LogEvent::On => {
+                                    if self.start.is_none() {
+                                        self.start = Some(entry.time.clone());
+                                        self.lookahead = 0;
+                                    } else {
+                                        let start = self.start.unwrap();
+                                        let len = self.buffer.len() - self.lookahead - 1;
+                                        self.start = Some(entry.time.clone());
+                                        self.lookahead = 0;
+                                        let lines: Vec<(usize, LogLine)> =
+                                            self.buffer.drain(..len).collect();
+                                        let result = DayCollection {
+                                            start: Some(start),
+                                            lines,
+                                        };
+                                        return Some(Ok(result));
                                     }
-                                    _ => {}
-                                },
-                                LogLine::Ignored(line) => {
-                                    if self.start.is_none()
-                                        || self.lookahead > 0
-                                        || !line.is_empty()
-                                    {
-                                        self.lookahead += 1;
-                                    }
+                                }
+                                _ => {}
+                            },
+                            LogLine::Ignored(line) => {
+                                if self.start.is_none() || self.lookahead > 0 || !line.is_empty() {
+                                    self.lookahead += 1;
                                 }
                             }
                         }
                     }
-                }
+                },
             }
         }
     }
 }
 
 pub fn read_log_lines<P>(filename: P) -> io::Result<LogLines<io::Lines<io::BufReader<File>>>>
-    where P: AsRef<Path>
+    where
+        P: AsRef<Path>,
 {
     let file = File::open(filename)?;
     Ok(LogLines::new(io::BufReader::new(file).lines()))

@@ -6,11 +6,12 @@ pub mod timelog;
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
     use chrono::DateTime;
 
     use crate::fileread::{DayCollector, LogLine, LogLines};
     use crate::taskregistry::{Task, TaskRegistry};
-    use std::time::Duration;
 
     const BLANK_LINES: &'static str = r#"
 
@@ -271,6 +272,9 @@ mod tests {
         ];
 
         assert_eq!(registry.get_work_times(), expected.as_ref());
-        assert_eq!(registry.get_work_duration(), Duration::from_secs(8 * 3600 + 54 * 60));
+        assert_eq!(
+            registry.get_work_duration(),
+            Duration::from_secs(8 * 3600 + 54 * 60)
+        );
     }
 }

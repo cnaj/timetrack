@@ -28,25 +28,23 @@ fn print_lines(path: &str) -> Result<(), String> {
     let mut last_entry: Option<TimelogEntry> = None;
     for line in lines.enumerate() {
         match line {
-            (_, Ok(entry)) => {
-                match &entry {
-                    LogLine::Entry(entry) => {
-                        if let LogEvent::On = entry.event {
-                            last_entry = None;
-                        }
-
-                        match last_entry {
-                            Some(last_entry) => {
-                                let diff = entry.time.sub(last_entry.time);
-                                println!("{:?};    {} minutes", last_entry, diff.num_minutes());
-                            }
-                            None => println!("Start of new day"),
-                        }
-                        last_entry = Some(entry.clone());
+            (_, Ok(entry)) => match &entry {
+                LogLine::Entry(entry) => {
+                    if let LogEvent::On = entry.event {
+                        last_entry = None;
                     }
-                    LogLine::Ignored(_) => println!(),
+
+                    match last_entry {
+                        Some(last_entry) => {
+                            let diff = entry.time.sub(last_entry.time);
+                            println!("{:?};    {} minutes", last_entry, diff.num_minutes());
+                        }
+                        None => println!("Start of new day"),
+                    }
+                    last_entry = Some(entry.clone());
                 }
-            }
+                LogLine::Ignored(_) => println!(),
+            },
             (n, Err(err)) => println!("Error (line {}): {}", n, err),
         }
     }
@@ -87,7 +85,6 @@ fn gather_days(path: &str) -> Result<(), String> {
     Ok(())
 }
 
-
 fn gather_day_tasks(path: &str) -> Result<(), String> {
     let lines = read_log_lines(path).map_err(|err| format!("Could not read file: {}", err))?;
 
@@ -97,11 +94,10 @@ fn gather_day_tasks(path: &str) -> Result<(), String> {
         let entries = day?;
         match entries.start {
             Some(start) => {
-                let it = entries.lines.iter()
-                    .filter_map(|line| match &line.1 {
-                        LogLine::Entry(entry) => Some((line.0, entry.clone())),
-                        LogLine::Ignored(_) => None,
-                    });
+                let it = entries.lines.iter().filter_map(|line| match &line.1 {
+                    LogLine::Entry(entry) => Some((line.0, entry.clone())),
+                    LogLine::Ignored(_) => None,
+                });
 
                 let registry = TaskRegistry::build(it)?;
                 println!("=== {:?}", start);
@@ -110,7 +106,8 @@ fn gather_day_tasks(path: &str) -> Result<(), String> {
                 }
 
                 let mut work_time = Duration::from_secs(0);
-                for task in registry.get_tasks().iter().skip(1) { // skip Pause task
+                for task in registry.get_tasks().iter().skip(1) {
+                    // skip Pause task
                     work_time += task.duration;
                 }
                 println!();
@@ -125,10 +122,16 @@ fn gather_day_tasks(path: &str) -> Result<(), String> {
                     let delta = format_duration(&off.sub(*on).to_std().unwrap());
                     let pause = match last_off {
                         Some(last_off) => format_duration(&on.sub(last_off).to_std().unwrap()),
-                        None => "".to_string()
+                        None => "".to_string(),
                     };
                     last_off = Some(*off);
-                    println!("{}\t{}\t{}\t{}", on.format("%H:%M"), off.format("%H:%M"), delta, pause);
+                    println!(
+                        "{}\t{}\t{}\t{}",
+                        on.format("%H:%M"),
+                        off.format("%H:%M"),
+                        delta,
+                        pause
+                    );
                 }
 
                 println!();
