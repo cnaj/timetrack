@@ -8,6 +8,7 @@ use chrono::{DateTime, FixedOffset, Local, Timelike};
 use crate::taskregistry::State::{DayTracking, Idle, TaskActive};
 use crate::timelog::{LogEvent, TimelogEntry};
 use std::mem::replace;
+use std::ops::Sub;
 
 #[derive(Eq, PartialEq, Hash, Debug, Clone)]
 pub struct Task {
@@ -62,19 +63,19 @@ impl TaskRegistryBuilder {
             Idle => match &entry.event {
                 LogEvent::On => {
                     replace(&mut self.task_registry, TaskRegistry::new());
-                    self.work_start_time = Some(entry.time);
+                    self.start_work_time(entry);
                     self.start_task(&entry.time, "Pause");
                     self.start_task(&entry.time, "n/n");
                     DayTracking
                 }
                 LogEvent::Continue => {
-                    self.work_start_time = Some(entry.time);
+                    self.start_work_time(entry);
                     self.add_time_to_task("Pause", &entry.time)?;
                     self.start_time = Some(entry.time);
                     DayTracking
                 }
                 LogEvent::Start(name) => {
-                    self.work_start_time = Some(entry.time);
+                    self.start_work_time(entry);
                     self.add_time_to_task("Pause", &entry.time)?;
                     self.start_task(&entry.time, name);
                     self.current_task_name = Some(name.clone());
@@ -89,8 +90,7 @@ impl TaskRegistryBuilder {
             },
             DayTracking => match &entry.event {
                 LogEvent::Off => {
-                    self.task_registry.add_work_time(self.work_start_time.unwrap(), entry.time);
-                    self.work_start_time = None;
+                    self.stop_work_time(entry);
                     self.add_time_to_task("n/n", &entry.time)?;
                     self.start_time = Some(entry.time);
                     Idle
@@ -116,8 +116,7 @@ impl TaskRegistryBuilder {
                     DayTracking
                 }
                 LogEvent::Off => {
-                    self.task_registry.add_work_time(self.work_start_time.unwrap(), entry.time);
-                    self.work_start_time = None;
+                    self.stop_work_time(entry);
                     self.add_time_to_current_task(&entry.time)?;
                     self.current_task_name = None;
                     self.start_time = Some(entry.time);
@@ -151,6 +150,15 @@ impl TaskRegistryBuilder {
         };
 
         Ok(())
+    }
+
+    fn start_work_time(&mut self, entry: &TimelogEntry) {
+        self.work_start_time = Some(entry.time);
+    }
+
+    fn stop_work_time(&mut self, entry: &TimelogEntry) {
+        self.task_registry.add_work_time(self.work_start_time.unwrap(), entry.time);
+        self.work_start_time = None;
     }
 
     fn add_time_to_current_task(&mut self, time: &DateTime<FixedOffset>) -> Result<(), String> {
@@ -188,6 +196,7 @@ pub struct TaskRegistry {
     tasks: Vec<Task>,
     names: HashMap<String, usize>,
     work_times: Vec<(DateTime<FixedOffset>, DateTime<FixedOffset>)>,
+    work_duration: Duration,
 }
 
 impl TaskRegistry {
@@ -196,6 +205,7 @@ impl TaskRegistry {
             tasks: Vec::new(),
             names: HashMap::new(),
             work_times: Vec::new(),
+            work_duration: Duration::from_secs(0),
         }
     }
 
@@ -221,6 +231,7 @@ impl TaskRegistry {
             tasks: builder.task_registry.tasks,
             names: builder.task_registry.names,
             work_times: builder.task_registry.work_times,
+            work_duration: builder.task_registry.work_duration,
         })
     }
 
@@ -230,6 +241,10 @@ impl TaskRegistry {
 
     pub fn get_work_times(&self) -> &[(DateTime<FixedOffset>, DateTime<FixedOffset>)] {
         self.work_times.as_slice()
+    }
+
+    pub fn get_work_duration(&self) -> Duration {
+        self.work_duration
     }
 
     fn add_time_to_task(&mut self, name: &str, time: Duration) -> Result<(), String> {
@@ -263,6 +278,7 @@ impl TaskRegistry {
 
     fn add_work_time(&mut self, from: DateTime<FixedOffset>, to: DateTime<FixedOffset>) {
         self.work_times.push((from, to));
+        self.work_duration += to.sub(from).to_std().unwrap();
     }
 
 }
