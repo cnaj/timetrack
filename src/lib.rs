@@ -11,7 +11,7 @@ mod tests {
     use chrono::DateTime;
 
     use crate::fileread::{DayCollector, LogLine, LogLines};
-    use crate::taskregistry::{Task, TaskRegistry};
+    use crate::taskregistry::{Task, TaskRegistry, TaskRegistryIteratorBuilder};
 
     const BLANK_LINES: &'static str = r#"
 
@@ -184,7 +184,10 @@ mod tests {
             LogLine::Ignored(_) => None,
         });
 
-        let registry = TaskRegistry::build(it).unwrap();
+        let it = TaskRegistryIteratorBuilder::new(it);
+        let registries: Vec<_> = it.collect();
+        assert_eq!(registries.len(), 1);
+        let registry = registries[0].as_ref().unwrap();
 
         let expected = [
             Task::new("Pause", 115),

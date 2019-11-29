@@ -61,11 +61,14 @@ impl TaskRegistryBuilder {
         }
     }
 
-    fn add_entry(&mut self, entry: &TimelogEntry) -> Result<(), String> {
+    fn add_entry(&mut self, entry: &TimelogEntry) -> Result<Option<TaskRegistry>, String> {
+        let mut result = None;
         self.state = match self.state {
             Idle => match &entry.event {
                 LogEvent::On => {
-                    replace(&mut self.task_registry, TaskRegistry::new());
+                    if self.start_time.is_some() {
+                        result = Some(replace(&mut self.task_registry, TaskRegistry::new()));
+                    }
                     self.start_work_time(entry);
                     self.start_task(&entry.time, "Pause");
                     self.start_task(&entry.time, "n/n");
@@ -152,7 +155,16 @@ impl TaskRegistryBuilder {
             },
         };
 
-        Ok(())
+        Ok(result)
+    }
+
+    pub fn finish(&mut self) -> Option<TaskRegistry> {
+        if self.start_time.is_some() {
+            self.start_time = None;
+            Some(replace(&mut self.task_registry, TaskRegistry::new()))
+        } else {
+            None
+        }
     }
 
     fn start_work_time(&mut self, entry: &TimelogEntry) {
@@ -196,6 +208,69 @@ impl TaskRegistryBuilder {
     ) -> () {
         self.start_time = Some(*time);
         self.task_registry.add_task(name);
+    }
+}
+
+pub struct TaskRegistryIteratorBuilder<I> {
+    it: I,
+    builder: TaskRegistryBuilder,
+    done: bool,
+}
+
+impl<I> TaskRegistryIteratorBuilder<I> {
+    pub fn new(it: I) -> TaskRegistryIteratorBuilder<I> {
+        TaskRegistryIteratorBuilder {
+            it,
+            builder: TaskRegistryBuilder::new(),
+            done: false,
+        }
+    }
+}
+
+impl<I> Iterator for TaskRegistryIteratorBuilder<I>
+    where
+        I: Iterator<Item=(usize, TimelogEntry)>,
+{
+    type Item = Result<TaskRegistry, String>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.done {
+            return None;
+        }
+        loop {
+            match self.it.next() {
+                None => {
+                    if self.builder.state != Idle {
+                        let now = Local::now()
+                            .with_second(0)
+                            .unwrap()
+                            .with_nanosecond(0)
+                            .unwrap();
+                        self.builder
+                            .add_entry(&TimelogEntry::new(&now.into(), LogEvent::Off))
+                            .unwrap();
+                    }
+                    self.done = true;
+                    return match self.builder.finish() {
+                        None => None,
+                        Some(result) => Some(Ok(result)),
+                    };
+                }
+                Some(entry) => match self.builder.add_entry(&entry.1) {
+                    Ok(result_opt) => {
+                        if let Some(result) = result_opt {
+                            return Some(Ok(result));
+                        }
+                    }
+                    Err(err) => {
+                        return Some(Err(format!(
+                            "{} (while processing {:?} in line {})",
+                            err, entry.1, entry.0
+                        )));
+                    }
+                },
+            }
+        }
     }
 }
 
