@@ -16,7 +16,7 @@ pub enum LogLine {
 }
 
 impl LogLine {
-    fn from_str(line: &str) -> Result<LogLine, String> {
+    pub fn from_str(line: &str) -> Result<LogLine, String> {
         if line.is_empty() || line.starts_with('#') {
             return Ok(LogLine::Ignored(line.to_owned()));
         }
@@ -26,17 +26,11 @@ impl LogLine {
     }
 }
 
-pub struct LogLines<T>
-where
-    T: Iterator<Item = io::Result<String>>,
-{
+pub struct LogLines<T> {
     lines: T,
 }
 
-impl<T> LogLines<T>
-where
-    T: Iterator<Item = io::Result<String>>,
-{
+impl<T> LogLines<T> {
     pub fn new(src: T) -> LogLines<T> {
         LogLines { lines: src }
     }
