@@ -193,8 +193,8 @@ impl TaskRegistryBuilder {
     fn add_time_to_task(&mut self, name: &str, time: &DateTime<FixedOffset>) -> Result<(), String> {
         let time_diff = *time
             - self
-            .start_time
-            .ok_or(format!("Invalid state: No start time recorded"))?;
+                .start_time
+                .ok_or(format!("Invalid state: No start time recorded"))?;
         let duration: Duration = time_diff
             .to_std()
             .map_err(|e| format!("Non-continuous timestamp: {}", e))?;
@@ -228,8 +228,8 @@ impl<I> TaskRegistryIteratorBuilder<I> {
 }
 
 impl<I> Iterator for TaskRegistryIteratorBuilder<I>
-    where
-        I: Iterator<Item=(usize, TimelogEntry)>,
+where
+    I: Iterator<Item = (usize, TimelogEntry)>,
 {
     type Item = Result<TaskRegistry, String>;
 
@@ -292,7 +292,7 @@ impl TaskRegistry {
         }
     }
 
-    pub fn build<I: Iterator<Item=(usize, TimelogEntry)>>(
+    pub fn build<I: Iterator<Item = (usize, TimelogEntry)>>(
         entries: I,
     ) -> Result<TaskRegistry, String> {
         let mut builder = TaskRegistryBuilder::new();

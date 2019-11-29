@@ -6,7 +6,7 @@ use std::time::Duration;
 
 use chrono::{DateTime, FixedOffset};
 
-use timetrack::fileread::{DayCollector, LogLine, read_log_lines};
+use timetrack::fileread::{read_log_lines, DayCollector, LogLine};
 use timetrack::taskregistry::TaskRegistry;
 use timetrack::timelog::{LogEvent, TimelogEntry};
 
