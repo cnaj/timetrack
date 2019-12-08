@@ -250,26 +250,26 @@ where
             return None;
         }
         loop {
-            match self.it.next() {
+            let result = match self.it.next() {
                 None => {
                     self.done = true;
-                    return self.builder.finish()
-                        .map(|result| Ok(result));
+                    self.builder.finish()
+                        .map(|result| Ok(result))
                 }
-                Some((line, Ok(entry))) => match self.builder.add_entry(&entry) {
-                    Ok(result_opt) => {
-                        if let Some(result) = result_opt {
-                            return Some(Ok(result));
-                        }
+                Some((line, Ok(entry))) => {
+                    let result_opt = self.builder.add_entry(&entry)
+                        .map_err(|err| format!("{} (while processing {:?} in line {})", err, entry, line))
+                        .transpose();
+                    if result_opt.is_none() {
+                        continue;
                     }
-                    Err(err) => {
-                        return Some(Err(format!("{} (while processing {:?} in line {})", err, entry, line)));
-                    }
+                    result_opt
                 }
                 Some((line, Err(err))) => {
-                    return Some(Err(format!("Error in line {}: {}", line, err)));
+                    Some(Err(format!("Error in line {}: {}", line, err)))
                 }
-            }
+            };
+            return result;
         }
     }
 }
