@@ -6,12 +6,13 @@ pub mod timelog;
 
 #[cfg(test)]
 mod tests {
+    use std::io;
     use std::time::Duration;
 
     use chrono::DateTime;
 
-    use crate::fileread::{DayCollector, LogLine, LogLines};
-    use crate::taskregistry::{Task, TaskRegistry, TaskRegistryIteratorBuilder};
+    use crate::fileread::{DayCollector, LogLines, LogEntries};
+    use crate::taskregistry::{Task, TaskRegistry, TaskRegistryIterator};
 
     const BLANK_LINES: &'static str = r#"
 
@@ -167,17 +168,12 @@ mod tests {
     fn test_day_1_tasks() {
         let src = DAY_1;
 
-        let it = src
+        let lines = src
             .lines()
-            .map(|line| LogLine::from_str(line).unwrap())
-            .enumerate()
-            .filter_map(|line| match line {
-                (n, LogLine::Entry(entry)) => Some((n, entry.clone())),
-                (_, LogLine::Ignored(_)) => None,
-            });
-
-        let it = TaskRegistryIteratorBuilder::new(it);
-        let registries: Vec<_> = it.collect();
+            .map(|line| io::Result::Ok(line.to_owned()));
+        let entries = LogEntries::new(lines);
+        let task_registries = TaskRegistryIterator::new(entries);
+        let registries: Vec<_> = task_registries.collect();
         assert_eq!(registries.len(), 1);
         let registry = registries[0].as_ref().unwrap();
 
@@ -188,17 +184,12 @@ mod tests {
     fn test_day_2_tasks() {
         let src = DAY_2;
 
-        let it = src
+        let lines = src
             .lines()
-            .map(|line| LogLine::from_str(line).unwrap())
-            .enumerate()
-            .filter_map(|line| match line {
-                (n, LogLine::Entry(entry)) => Some((n, entry.clone())),
-                (_, LogLine::Ignored(_)) => None,
-            });
-
-        let it = TaskRegistryIteratorBuilder::new(it);
-        let registries: Vec<_> = it.collect();
+            .map(|line| io::Result::Ok(line.to_owned()));
+        let entries = LogEntries::new(lines);
+        let task_registries = TaskRegistryIterator::new(entries);
+        let registries: Vec<_> = task_registries.collect();
         assert_eq!(registries.len(), 1);
         let registry = registries[0].as_ref().unwrap();
 
@@ -215,17 +206,12 @@ mod tests {
         src.push_str(DAY_2);
         src.push_str(BLANK_LINES);
 
-        let it = src
+        let lines = src
             .lines()
-            .map(|line| LogLine::from_str(line).unwrap())
-            .enumerate()
-            .filter_map(|line| match line {
-                (n, LogLine::Entry(entry)) => Some((n, entry.clone())),
-                (_, LogLine::Ignored(_)) => None,
-            });
-
-        let it = TaskRegistryIteratorBuilder::new(it);
-        let registries: Vec<_> = it.collect();
+            .map(|line| io::Result::Ok(line.to_owned()));
+        let entries = LogEntries::new(lines);
+        let task_registries = TaskRegistryIterator::new(entries);
+        let registries: Vec<_> = task_registries.collect();
         assert_eq!(registries.len(), 2);
 
         assert_day1_tasks(registries[0].as_ref().unwrap());
@@ -236,17 +222,12 @@ mod tests {
     fn test_work_time() {
         let src = DAY_3;
 
-        let it = src
+        let lines = src
             .lines()
-            .map(|line| LogLine::from_str(line).unwrap())
-            .enumerate()
-            .filter_map(|line| match line {
-                (n, LogLine::Entry(entry)) => Some((n, entry.clone())),
-                (_, LogLine::Ignored(_)) => None,
-            });
-
-        let it = TaskRegistryIteratorBuilder::new(it);
-        let registries: Vec<_> = it.collect();
+            .map(|line| io::Result::Ok(line.to_owned()));
+        let entries = LogEntries::new(lines);
+        let task_registries = TaskRegistryIterator::new(entries);
+        let registries: Vec<_> = task_registries.collect();
         assert_eq!(registries.len(), 1);
 
         assert_day3_work_times(registries[0].as_ref().unwrap());

@@ -1,13 +1,15 @@
 #![allow(dead_code)]
 
-use std::env;
+use std::io::BufRead;
 use std::ops::Sub;
 use std::time::Duration;
+use std::{env, io};
 
 use chrono::{DateTime, FixedOffset};
 
-use timetrack::fileread::{read_log_lines, DayCollector, LogLine};
-use timetrack::taskregistry::TaskRegistry;
+use std::fs::File;
+use timetrack::fileread::{read_log_lines, DayCollector, LogLine, LogEntries};
+use timetrack::taskregistry::{TaskRegistry, TaskRegistryIterator};
 use timetrack::timelog::{LogEvent, TimelogEntry};
 
 fn main() -> Result<(), String> {
@@ -18,7 +20,7 @@ fn main() -> Result<(), String> {
         std::process::exit(1);
     }
 
-    gather_day_tasks(args[1].as_str())?;
+    print_summaries(args[1].as_str())?;
     Ok(())
 }
 
@@ -85,61 +87,59 @@ fn gather_days(path: &str) -> Result<(), String> {
     Ok(())
 }
 
-fn gather_day_tasks(path: &str) -> Result<(), String> {
-    let lines = read_log_lines(path).map_err(|err| format!("Could not read file: {}", err))?;
+fn print_summaries(path: &str) -> Result<(), String> {
+    let file = File::open(path).map_err(|err| format!("Could not read file: {}", err))?;
+    let lines = io::BufReader::new(file).lines();
+    let entries = LogEntries::new(lines);
+    let task_registries = TaskRegistryIterator::new(entries);
 
-    let day_collector = DayCollector::new(lines);
-
-    for day in day_collector {
-        let entries = day?;
-        match entries.start {
-            Some(start) => {
-                let it = entries.lines.iter().filter_map(|line| match &line.1 {
-                    LogLine::Entry(entry) => Some((line.0, entry.clone())),
-                    LogLine::Ignored(_) => None,
-                });
-
-                let registry = TaskRegistry::build(it)?;
-                println!("=== {:?}", start);
-                for task in registry.get_tasks() {
-                    println!("{}", task);
-                }
-
-                let mut work_time = Duration::from_secs(0);
-                for task in registry.get_tasks().iter().skip(1) {
-                    // skip Pause task
-                    work_time += task.duration;
-                }
-                println!();
-
-                println!("-- Work time: {}", format_duration(&registry.get_work_duration()));
-                println!();
-
-                println!("-- Work hours:");
-                println!("on   \toff  \ttime \tpause");
-                let mut last_off: Option<DateTime<FixedOffset>> = None;
-                for (on, off) in registry.get_work_times() {
-                    let delta = format_duration(&off.sub(*on).to_std().unwrap());
-                    let pause = match last_off {
-                        Some(last_off) => format_duration(&on.sub(last_off).to_std().unwrap()),
-                        None => "".to_string(),
-                    };
-                    last_off = Some(*off);
-                    println!(
-                        "{}\t{}\t{}\t{}",
-                        on.format("%H:%M"),
-                        off.format("%H:%M"),
-                        delta,
-                        pause
-                    );
-                }
-
-                println!();
-            }
-            None => {}
-        }
+    for registry in task_registries {
+        let registry = registry?;
+        print_day_summary(&registry)?;
     }
 
+    Ok(())
+}
+
+fn print_day_summary(registry: &TaskRegistry) -> Result<(), String> {
+    println!("=== {:?}", registry.get_start_time()?);
+    for task in registry.get_tasks() {
+        println!("{}", task);
+    }
+
+    let mut work_time = Duration::from_secs(0);
+    for task in registry.get_tasks().iter().skip(1) {
+        // skip Pause task
+        work_time += task.duration;
+    }
+    println!();
+
+    println!(
+        "-- Work time: {}",
+        format_duration(&registry.get_work_duration())
+    );
+    println!();
+
+    println!("-- Work hours:");
+    println!("on   \toff  \ttime \tpause");
+    let mut last_off: Option<DateTime<FixedOffset>> = None;
+    for (on, off) in registry.get_work_times() {
+        let delta = format_duration(&off.sub(*on).to_std().unwrap());
+        let pause = match last_off {
+            Some(last_off) => format_duration(&on.sub(last_off).to_std().unwrap()),
+            None => "".to_string(),
+        };
+        last_off = Some(*off);
+        println!(
+            "{}\t{}\t{}\t{}",
+            on.format("%H:%M"),
+            off.format("%H:%M"),
+            delta,
+            pause
+        );
+    }
+
+    println!();
     Ok(())
 }
 

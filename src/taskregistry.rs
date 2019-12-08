@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::fmt;
-use std::fmt::{Error, Formatter};
+use std::fmt::{Display, Error, Formatter};
 use std::mem::replace;
 use std::ops::Sub;
 use std::time::Duration;
@@ -66,7 +66,7 @@ impl TaskRegistryBuilder {
         self.state = match self.state {
             Idle => match &entry.event {
                 LogEvent::On => {
-                    if self.start_time.is_some() {
+                    if !self.task_registry.work_times.is_empty() {
                         result = Some(replace(&mut self.task_registry, TaskRegistry::new()));
                     }
                     self.start_work_time(entry);
@@ -96,9 +96,9 @@ impl TaskRegistryBuilder {
             },
             DayTracking => match &entry.event {
                 LogEvent::Off => {
-                    self.stop_work_time(entry);
                     self.add_time_to_task("n/n", &entry.time)?;
                     self.start_time = Some(entry.time);
+                    self.stop_work_time(entry);
                     Idle
                 }
                 LogEvent::Start(name) => {
@@ -122,15 +122,14 @@ impl TaskRegistryBuilder {
                     DayTracking
                 }
                 LogEvent::Off => {
-                    self.stop_work_time(entry);
                     self.add_time_to_current_task(&entry.time)?;
                     self.current_task_name = None;
                     self.start_time = Some(entry.time);
+                    self.stop_work_time(entry);
                     Idle
                 }
                 LogEvent::Start(name) => {
                     self.add_time_to_current_task(&entry.time)?;
-                    self.current_task_name = None;
                     self.start_task(&entry.time, name);
                     self.current_task_name = Some(name.to_owned());
                     TaskActive
@@ -158,7 +157,17 @@ impl TaskRegistryBuilder {
         Ok(result)
     }
 
-    pub fn finish(&mut self) -> Option<TaskRegistry> {
+    fn finish(&mut self) -> Option<TaskRegistry> {
+        if self.state != Idle {
+            let now = Local::now()
+                .with_second(0)
+                .unwrap()
+                .with_nanosecond(0)
+                .unwrap();
+            self.add_entry(&TimelogEntry::new(&now.into(), LogEvent::Off))
+                .unwrap();
+        }
+
         if self.start_time.is_some() {
             self.start_time = None;
             Some(replace(&mut self.task_registry, TaskRegistry::new()))
@@ -191,10 +200,8 @@ impl TaskRegistryBuilder {
     }
 
     fn add_time_to_task(&mut self, name: &str, time: &DateTime<FixedOffset>) -> Result<(), String> {
-        let time_diff = *time
-            - self
-                .start_time
-                .ok_or(format!("Invalid state: No start time recorded"))?;
+        let time_diff = *time - self.start_time
+            .ok_or(format!("Invalid state: No start time recorded"))?;
         let duration: Duration = time_diff
             .to_std()
             .map_err(|e| format!("Non-continuous timestamp: {}", e))?;
@@ -211,15 +218,19 @@ impl TaskRegistryBuilder {
     }
 }
 
-pub struct TaskRegistryIteratorBuilder<I> {
+pub struct TaskRegistryIterator<I> {
     it: I,
     builder: TaskRegistryBuilder,
     done: bool,
 }
 
-impl<I> TaskRegistryIteratorBuilder<I> {
-    pub fn new(it: I) -> TaskRegistryIteratorBuilder<I> {
-        TaskRegistryIteratorBuilder {
+impl<I, E> TaskRegistryIterator<I>
+where
+    I: Iterator<Item = (usize, Result<TimelogEntry, E>)>,
+    E: Display,
+{
+    pub fn new(it: I) -> TaskRegistryIterator<I> {
+        TaskRegistryIterator {
             it,
             builder: TaskRegistryBuilder::new(),
             done: false,
@@ -227,9 +238,10 @@ impl<I> TaskRegistryIteratorBuilder<I> {
     }
 }
 
-impl<I> Iterator for TaskRegistryIteratorBuilder<I>
+impl<I, E> Iterator for TaskRegistryIterator<I>
 where
-    I: Iterator<Item = (usize, TimelogEntry)>,
+    I: Iterator<Item = (usize, Result<TimelogEntry, E>)>,
+    E: Display,
 {
     type Item = Result<TaskRegistry, String>;
 
@@ -240,35 +252,23 @@ where
         loop {
             match self.it.next() {
                 None => {
-                    if self.builder.state != Idle {
-                        let now = Local::now()
-                            .with_second(0)
-                            .unwrap()
-                            .with_nanosecond(0)
-                            .unwrap();
-                        self.builder
-                            .add_entry(&TimelogEntry::new(&now.into(), LogEvent::Off))
-                            .unwrap();
-                    }
                     self.done = true;
-                    return match self.builder.finish() {
-                        None => None,
-                        Some(result) => Some(Ok(result)),
-                    };
+                    return self.builder.finish()
+                        .map(|result| Ok(result));
                 }
-                Some(entry) => match self.builder.add_entry(&entry.1) {
+                Some((line, Ok(entry))) => match self.builder.add_entry(&entry) {
                     Ok(result_opt) => {
                         if let Some(result) = result_opt {
                             return Some(Ok(result));
                         }
                     }
                     Err(err) => {
-                        return Some(Err(format!(
-                            "{} (while processing {:?} in line {})",
-                            err, entry.1, entry.0
-                        )));
+                        return Some(Err(format!("{} (while processing {:?} in line {})", err, entry, line)));
                     }
-                },
+                }
+                Some((line, Err(err))) => {
+                    return Some(Err(format!("Error in line {}: {}", line, err)));
+                }
             }
         }
     }
@@ -292,36 +292,16 @@ impl TaskRegistry {
         }
     }
 
-    pub fn build<I: Iterator<Item = (usize, TimelogEntry)>>(
-        entries: I,
-    ) -> Result<TaskRegistry, String> {
-        let mut builder = TaskRegistryBuilder::new();
-
-        for entry in entries {
-            builder.add_entry(&entry.1).map_err(|e| {
-                format!("{} (while processing {:?} in line {})", e, entry.1, entry.0)
-            })?;
-        }
-
-        if builder.state != Idle {
-            let now = Local::now()
-                .with_second(0)
-                .unwrap()
-                .with_nanosecond(0)
-                .unwrap();
-            builder.add_entry(&TimelogEntry::new(&now.into(), LogEvent::Off))?;
-        }
-
-        Ok(TaskRegistry {
-            tasks: builder.task_registry.tasks,
-            names: builder.task_registry.names,
-            work_times: builder.task_registry.work_times,
-            work_duration: builder.task_registry.work_duration,
-        })
-    }
-
     pub fn get_tasks(&self) -> &[Task] {
         self.tasks.as_slice()
+    }
+
+    pub fn get_start_time(&self) -> Result<DateTime<FixedOffset>, String> {
+        let times = self
+            .work_times
+            .first()
+            .ok_or_else(|| format!("No work times recorded"))?;
+        Ok(times.0)
     }
 
     pub fn get_work_times(&self) -> &[(DateTime<FixedOffset>, DateTime<FixedOffset>)] {
