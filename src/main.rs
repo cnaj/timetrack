@@ -112,7 +112,7 @@ fn gather_day_tasks(path: &str) -> Result<(), String> {
                 }
                 println!();
 
-                println!("-- Work time: {}", format_duration(&mut work_time));
+                println!("-- Work time: {}", format_duration(&registry.get_work_duration()));
                 println!();
 
                 println!("-- Work hours:");

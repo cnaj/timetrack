@@ -362,7 +362,13 @@ impl TaskRegistry {
     }
 
     fn add_work_time(&mut self, from: DateTime<FixedOffset>, to: DateTime<FixedOffset>) {
-        self.work_times.push((from, to));
         self.work_duration += to.sub(from).to_std().unwrap();
+        if let Some((_, last_to)) = self.work_times.last_mut() {
+            if from == *last_to {
+                *last_to = to;
+                return;
+            }
+        }
+        self.work_times.push((from, to));
     }
 }

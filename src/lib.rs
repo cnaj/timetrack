@@ -167,7 +167,8 @@ mod tests {
     fn test_day_1_tasks() {
         let src = DAY_1;
 
-        let it = src.lines()
+        let it = src
+            .lines()
             .map(|line| LogLine::from_str(line).unwrap())
             .enumerate()
             .filter_map(|line| match line {
@@ -187,7 +188,8 @@ mod tests {
     fn test_day_2_tasks() {
         let src = DAY_2;
 
-        let it = src.lines()
+        let it = src
+            .lines()
             .map(|line| LogLine::from_str(line).unwrap())
             .enumerate()
             .filter_map(|line| match line {
@@ -213,7 +215,8 @@ mod tests {
         src.push_str(DAY_2);
         src.push_str(BLANK_LINES);
 
-        let it = src.lines()
+        let it = src
+            .lines()
             .map(|line| LogLine::from_str(line).unwrap())
             .enumerate()
             .filter_map(|line| match line {
@@ -233,7 +236,8 @@ mod tests {
     fn test_work_time() {
         let src = DAY_3;
 
-        let it = src.lines()
+        let it = src
+            .lines()
             .map(|line| LogLine::from_str(line).unwrap())
             .enumerate()
             .filter_map(|line| match line {
