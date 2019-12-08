@@ -4,11 +4,9 @@ use std::io::BufRead;
 use std::iter::Enumerate;
 use std::path::Path;
 
-use chrono::{DateTime, FixedOffset};
-
-use crate::timelog::LogEvent;
 use crate::timelog::TimelogEntry;
 use std::fmt::Display;
+use crate::taskregistry::{TaskRegistryBuilder, TaskRegistry};
 
 #[derive(Eq, PartialEq, Debug, Clone)]
 pub enum LogLine {
@@ -101,7 +99,7 @@ where
 
 #[derive(Debug, Clone)]
 pub struct DayCollection {
-    pub start: Option<DateTime<FixedOffset>>,
+    pub tasks: Option<TaskRegistry>,
     pub lines: Vec<(usize, LogLine)>,
 }
 
@@ -110,10 +108,10 @@ where
     T: Iterator<Item = io::Result<String>>,
 {
     log_lines: Enumerate<LogLines<T>>,
+    builder: TaskRegistryBuilder,
     done: bool,
     buffer: Vec<(usize, LogLine)>,
     lookahead: usize,
-    start: Option<DateTime<FixedOffset>>,
 }
 
 impl<T> DayCollector<T>
@@ -123,10 +121,60 @@ where
     pub fn new(log_lines: LogLines<T>) -> DayCollector<T> {
         DayCollector {
             log_lines: log_lines.enumerate(),
+            builder: TaskRegistryBuilder::new(),
             done: false,
             buffer: Vec::new(),
             lookahead: 0,
-            start: None,
+        }
+    }
+
+    fn process_eof(&mut self) -> Option<Result<DayCollection, String>> {
+        self.done = true;
+        let lines: Vec<(usize, LogLine)> = self.buffer.drain(..).collect();
+        if !lines.is_empty() {
+            let result = DayCollection {
+                tasks: self.builder.finish(),
+                lines,
+            };
+            Some(Ok(result))
+        } else {
+            None
+        }
+    }
+
+    fn process_next_line(&mut self, n: usize, log_line: LogLine)
+                         -> Option<Result<DayCollection, String>>
+    {
+        self.buffer.push((n + 1, log_line.clone()));
+
+        match log_line {
+            LogLine::Entry(entry) => {
+                let result = match self.builder.add_entry(&entry) {
+                    Err(err) => Some(Err(format!("{} (while processing {:?} in line {})", err, entry, n))),
+                    Ok(tasks_opt) => tasks_opt
+                        .map(|tasks| {
+                            let len = self.buffer.len() - self.lookahead - 1;
+                            let lines: Vec<(usize, LogLine)> =
+                                self.buffer.drain(..len).collect();
+                            let result = DayCollection {
+                                tasks: Some(tasks.clone()),
+                                lines,
+                            };
+
+                            result
+                        })
+                        .map(|res| Ok(res))
+                };
+
+                self.lookahead = 0;
+                result
+            }
+            LogLine::Ignored(line) => {
+                if self.lookahead > 0 || !line.is_empty() {
+                    self.lookahead += 1;
+                }
+                None
+            }
         }
     }
 }
@@ -141,58 +189,21 @@ where
         if self.done {
             return None;
         }
+
         loop {
-            match self.log_lines.next() {
-                None => {
-                    self.done = true;
-                    let lines: Vec<(usize, LogLine)> = self.buffer.drain(..).collect();
-                    if !lines.is_empty() {
-                        let result = DayCollection {
-                            start: self.start.clone(),
-                            lines,
-                        };
-                        return Some(Ok(result));
-                    } else {
-                        return None;
-                    }
+            let next = self.log_lines.next();
+
+            let (n, line) = match next {
+                None => return self.process_eof(),
+                Some((n, line_res)) => match line_res {
+                    Err(err) => return Some(Err(format!("Input error on line {}: {}", n, err))),
+                    Ok(line) => (n, line)
                 }
-                Some(line) => match line {
-                    (_, Err(err)) => {
-                        self.done = true;
-                        return Some(Err(format!("Input error: {}", err)));
-                    }
-                    (n, Ok(log_line)) => {
-                        self.buffer.push((n + 1, log_line.clone()));
-                        match log_line {
-                            LogLine::Entry(entry) => match entry.event {
-                                LogEvent::On => {
-                                    if self.start.is_none() {
-                                        self.start = Some(entry.time.clone());
-                                        self.lookahead = 0;
-                                    } else {
-                                        let start = self.start.unwrap();
-                                        let len = self.buffer.len() - self.lookahead - 1;
-                                        self.start = Some(entry.time.clone());
-                                        self.lookahead = 0;
-                                        let lines: Vec<(usize, LogLine)> =
-                                            self.buffer.drain(..len).collect();
-                                        let result = DayCollection {
-                                            start: Some(start),
-                                            lines,
-                                        };
-                                        return Some(Ok(result));
-                                    }
-                                }
-                                _ => {}
-                            },
-                            LogLine::Ignored(line) => {
-                                if self.start.is_none() || self.lookahead > 0 || !line.is_empty() {
-                                    self.lookahead += 1;
-                                }
-                            }
-                        }
-                    }
-                },
+            };
+
+            let result = self.process_next_line(n, line);
+            if result.is_some() {
+                return result;
             }
         }
     }

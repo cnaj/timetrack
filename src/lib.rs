@@ -39,6 +39,9 @@ mod tests {
 2019-11-22T09:14+0100	off
 2019-11-22T09:20+0100	start	BACKEND-input-parsing
 2019-11-22T09:32+0100	off
+
+# Pause
+
 2019-11-22T09:49+0100	start	BACKEND-input-parsing
 2019-11-22T10:40+0100	off
 2019-11-22T11:06+0100	start	BACKEND-input-parsing
@@ -118,17 +121,17 @@ mod tests {
 
         let day1 = days[0].as_ref().unwrap();
         assert_eq!(
-            day1.start,
-            Some(DateTime::parse_from_rfc3339("2019-11-21T07:30:00+01:00").unwrap())
+            day1.tasks.as_ref().unwrap().get_start_time().unwrap(),
+            DateTime::parse_from_rfc3339("2019-11-21T07:30:00+01:00").unwrap()
         );
         assert_eq!(day1.lines.len(), 9);
 
         let day2 = days[1].as_ref().unwrap();
         assert_eq!(
-            day2.start,
-            Some(DateTime::parse_from_rfc3339("2019-11-22T07:00:00+01:00").unwrap())
+            day2.tasks.as_ref().unwrap().get_start_time().unwrap(),
+            DateTime::parse_from_rfc3339("2019-11-22T07:00:00+01:00").unwrap()
         );
-        assert_eq!(day2.lines.len(), 18);
+        assert_eq!(day2.lines.len(), 21);
     }
 
     #[test]
@@ -151,17 +154,17 @@ mod tests {
 
         let day1 = days[0].as_ref().unwrap();
         assert_eq!(
-            day1.start,
-            Some(DateTime::parse_from_rfc3339("2019-11-21T07:30:00+01:00").unwrap())
+            day1.tasks.as_ref().unwrap().get_start_time().unwrap(),
+            DateTime::parse_from_rfc3339("2019-11-21T07:30:00+01:00").unwrap()
         );
         assert_eq!(day1.lines.len(), 13);
 
         let day2 = days[1].as_ref().unwrap();
         assert_eq!(
-            day2.start,
-            Some(DateTime::parse_from_rfc3339("2019-11-22T07:00:00+01:00").unwrap())
+            day2.tasks.as_ref().unwrap().get_start_time().unwrap(),
+            DateTime::parse_from_rfc3339("2019-11-22T07:00:00+01:00").unwrap()
         );
-        assert_eq!(day2.lines.len(), 21);
+        assert_eq!(day2.lines.len(), 24);
     }
 
     #[test]

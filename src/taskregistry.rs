@@ -42,7 +42,7 @@ enum State {
     TaskActive,
 }
 
-struct TaskRegistryBuilder {
+pub struct TaskRegistryBuilder {
     start_time: Option<DateTime<FixedOffset>>,
     state: State,
     current_task_name: Option<String>,
@@ -51,7 +51,7 @@ struct TaskRegistryBuilder {
 }
 
 impl TaskRegistryBuilder {
-    fn new() -> TaskRegistryBuilder {
+    pub fn new() -> TaskRegistryBuilder {
         TaskRegistryBuilder {
             start_time: None,
             state: Idle,
@@ -61,7 +61,7 @@ impl TaskRegistryBuilder {
         }
     }
 
-    fn add_entry(&mut self, entry: &TimelogEntry) -> Result<Option<TaskRegistry>, String> {
+    pub fn add_entry(&mut self, entry: &TimelogEntry) -> Result<Option<TaskRegistry>, String> {
         let mut result = None;
         self.state = match self.state {
             Idle => match &entry.event {
@@ -157,7 +157,7 @@ impl TaskRegistryBuilder {
         Ok(result)
     }
 
-    fn finish(&mut self) -> Option<TaskRegistry> {
+    pub fn finish(&mut self) -> Option<TaskRegistry> {
         if self.state != Idle {
             let now = Local::now()
                 .with_second(0)
