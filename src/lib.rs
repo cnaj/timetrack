@@ -11,8 +11,8 @@ mod tests {
 
     use chrono::DateTime;
 
-    use crate::fileread::{DayCollector, LogLines, LogEntries};
-    use crate::taskregistry::{Task, TaskRegistry, TaskRegistryIterator};
+    use crate::fileread::{DayCollector, LogLines};
+    use crate::taskregistry::{Task, TaskRegistry};
 
     const BLANK_LINES: &'static str = r#"
 
@@ -111,9 +111,10 @@ mod tests {
         src.push_str(DAY_1);
         src.push_str(DAY_2);
 
-        let lines = src.lines().map(|line| Ok(line.to_owned()));
+        let lines = src
+            .lines()
+            .map(|line| io::Result::Ok(line.to_owned()));
         let lines = LogLines::new(lines);
-
         let day_collector = DayCollector::new(lines);
 
         let days: Vec<_> = day_collector.collect();
@@ -144,7 +145,9 @@ mod tests {
         src.push_str(DAY_2);
         src.push_str(BLANK_LINES);
 
-        let lines = src.lines().map(|line| Ok(line.to_owned()));
+        let lines = src
+            .lines()
+            .map(|line| io::Result::Ok(line.to_owned()));
         let lines = LogLines::new(lines);
 
         let day_collector = DayCollector::new(lines);
@@ -174,13 +177,14 @@ mod tests {
         let lines = src
             .lines()
             .map(|line| io::Result::Ok(line.to_owned()));
-        let entries = LogEntries::new(lines);
-        let task_registries = TaskRegistryIterator::new(entries);
-        let registries: Vec<_> = task_registries.collect();
-        assert_eq!(registries.len(), 1);
-        let registry = registries[0].as_ref().unwrap();
+        let lines = LogLines::new(lines);
+        let day_collector = DayCollector::new(lines);
 
-        assert_day1_tasks(registry);
+        let days: Vec<_> = day_collector.collect();
+        assert_eq!(days.len(), 1);
+
+        let registry = days[0].as_ref().unwrap().tasks.as_ref().unwrap();
+        assert_day1_tasks(&registry);
     }
 
     #[test]
@@ -190,12 +194,13 @@ mod tests {
         let lines = src
             .lines()
             .map(|line| io::Result::Ok(line.to_owned()));
-        let entries = LogEntries::new(lines);
-        let task_registries = TaskRegistryIterator::new(entries);
-        let registries: Vec<_> = task_registries.collect();
-        assert_eq!(registries.len(), 1);
-        let registry = registries[0].as_ref().unwrap();
+        let lines = LogLines::new(lines);
+        let day_collector = DayCollector::new(lines);
 
+        let days: Vec<_> = day_collector.collect();
+        assert_eq!(days.len(), 1);
+
+        let registry = days[0].as_ref().unwrap().tasks.as_ref().unwrap();
         assert_day2_tasks(registry);
     }
 
@@ -212,13 +217,14 @@ mod tests {
         let lines = src
             .lines()
             .map(|line| io::Result::Ok(line.to_owned()));
-        let entries = LogEntries::new(lines);
-        let task_registries = TaskRegistryIterator::new(entries);
-        let registries: Vec<_> = task_registries.collect();
-        assert_eq!(registries.len(), 2);
+        let lines = LogLines::new(lines);
+        let day_collector = DayCollector::new(lines);
 
-        assert_day1_tasks(registries[0].as_ref().unwrap());
-        assert_day2_tasks(registries[1].as_ref().unwrap());
+        let days: Vec<_> = day_collector.collect();
+        assert_eq!(days.len(), 2);
+
+        assert_day1_tasks(days[0].as_ref().unwrap().tasks.as_ref().unwrap());
+        assert_day2_tasks(days[1].as_ref().unwrap().tasks.as_ref().unwrap());
     }
 
     #[test]
@@ -228,12 +234,13 @@ mod tests {
         let lines = src
             .lines()
             .map(|line| io::Result::Ok(line.to_owned()));
-        let entries = LogEntries::new(lines);
-        let task_registries = TaskRegistryIterator::new(entries);
-        let registries: Vec<_> = task_registries.collect();
-        assert_eq!(registries.len(), 1);
+        let lines = LogLines::new(lines);
+        let day_collector = DayCollector::new(lines);
 
-        assert_day3_work_times(registries[0].as_ref().unwrap());
+        let days: Vec<_> = day_collector.collect();
+        assert_eq!(days.len(), 1);
+
+        assert_day3_work_times(days[0].as_ref().unwrap().tasks.as_ref().unwrap());
     }
 
     fn assert_day1_tasks(registry: &TaskRegistry) {

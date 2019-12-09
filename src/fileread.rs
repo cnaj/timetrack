@@ -1,12 +1,12 @@
 use std::fs::File;
 use std::io;
 use std::io::BufRead;
-use std::iter::Enumerate;
 use std::path::Path;
 
 use crate::timelog::TimelogEntry;
 use std::fmt::Display;
 use crate::taskregistry::{TaskRegistryBuilder, TaskRegistry};
+use std::iter::Enumerate;
 
 #[derive(Eq, PartialEq, Debug, Clone)]
 pub enum LogLine {
@@ -26,26 +26,32 @@ impl LogLine {
 }
 
 pub struct LogLines<T> {
-    lines: T,
+    lines: Enumerate<T>,
 }
 
-impl<T> LogLines<T> {
+impl<T, E> LogLines<T>
+where
+    T: Iterator<Item = Result<String, E>>,
+    E: Display,
+{
     pub fn new(src: T) -> LogLines<T> {
-        LogLines { lines: src }
+        LogLines { lines: src.enumerate() }
     }
 }
 
-impl<T> Iterator for LogLines<T>
+impl<T, E> Iterator for LogLines<T>
 where
-    T: Iterator<Item = io::Result<String>>,
+    T: Iterator<Item = Result<String, E>>,
+    E: Display,
 {
-    type Item = Result<LogLine, String>;
+    type Item = (usize, Result<LogLine, String>);
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.lines.next().map(|line| {
-            line.map_err(|err| format!("Could not read line: {}", err))
-                .and_then(|line| LogLine::from_str(line.as_str()))
-                .map(|line| line)
+        self.lines.next().map(|(n, line)| {
+            let line = line
+                .map_err(|err| format!("Could not read line nr. {}: {}", n, err))
+                .and_then(|line| LogLine::from_str(line.as_str()));
+            (n, line)
         })
     }
 }
@@ -103,24 +109,23 @@ pub struct DayCollection {
     pub lines: Vec<(usize, LogLine)>,
 }
 
-pub struct DayCollector<T>
-where
-    T: Iterator<Item = io::Result<String>>,
+pub struct DayCollector<I>
 {
-    log_lines: Enumerate<LogLines<T>>,
+    it: I,
     builder: TaskRegistryBuilder,
     done: bool,
     buffer: Vec<(usize, LogLine)>,
     lookahead: usize,
 }
 
-impl<T> DayCollector<T>
+impl<I, E> DayCollector<I>
 where
-    T: Iterator<Item = io::Result<String>>,
+    I: Iterator<Item = (usize, Result<LogLine, E>)>,
+    E: Display,
 {
-    pub fn new(log_lines: LogLines<T>) -> DayCollector<T> {
+    pub fn new(it: I) -> DayCollector<I> {
         DayCollector {
-            log_lines: log_lines.enumerate(),
+            it,
             builder: TaskRegistryBuilder::new(),
             done: false,
             buffer: Vec::new(),
@@ -179,9 +184,10 @@ where
     }
 }
 
-impl<T> Iterator for DayCollector<T>
+impl<I, E> Iterator for DayCollector<I>
 where
-    T: Iterator<Item = io::Result<String>>,
+    I: Iterator<Item = (usize, Result<LogLine, E>)>,
+    E: Display,
 {
     type Item = Result<DayCollection, String>;
 
@@ -191,7 +197,7 @@ where
         }
 
         loop {
-            let next = self.log_lines.next();
+            let next = self.it.next();
 
             let (n, line) = match next {
                 None => return self.process_eof(),

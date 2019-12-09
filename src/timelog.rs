@@ -18,12 +18,12 @@ pub struct TimelogEntry {
     pub event: LogEvent,
 }
 
-#[allow(dead_code)]
 impl TimelogEntry {
     pub fn new(time: &DateTime<FixedOffset>, event: LogEvent) -> TimelogEntry {
         TimelogEntry { time: *time, event }
     }
 
+    #[allow(dead_code)]
     fn of_str(time: &str, event: LogEvent) -> TimelogEntry {
         TimelogEntry {
             time: DateTime::parse_from_rfc3339(time).unwrap(),
