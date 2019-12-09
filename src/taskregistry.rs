@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::fmt;
-use std::fmt::{Display, Error, Formatter};
+use std::fmt::{Error, Formatter};
 use std::mem::replace;
 use std::ops::Sub;
 use std::time::Duration;
@@ -215,62 +215,6 @@ impl TaskRegistryBuilder {
     ) -> () {
         self.start_time = Some(*time);
         self.task_registry.add_task(name);
-    }
-}
-
-pub struct TaskRegistryIterator<I> {
-    it: I,
-    builder: TaskRegistryBuilder,
-    done: bool,
-}
-
-impl<I, E> TaskRegistryIterator<I>
-where
-    I: Iterator<Item = (usize, Result<TimelogEntry, E>)>,
-    E: Display,
-{
-    pub fn new(it: I) -> TaskRegistryIterator<I> {
-        TaskRegistryIterator {
-            it,
-            builder: TaskRegistryBuilder::new(),
-            done: false,
-        }
-    }
-}
-
-impl<I, E> Iterator for TaskRegistryIterator<I>
-where
-    I: Iterator<Item = (usize, Result<TimelogEntry, E>)>,
-    E: Display,
-{
-    type Item = Result<TaskRegistry, String>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.done {
-            return None;
-        }
-        loop {
-            let result = match self.it.next() {
-                None => {
-                    self.done = true;
-                    self.builder.finish()
-                        .map(|result| Ok(result))
-                }
-                Some((line, Ok(entry))) => {
-                    let result_opt = self.builder.add_entry(&entry)
-                        .map_err(|err| format!("{} (while processing {:?} in line {})", err, entry, line))
-                        .transpose();
-                    if result_opt.is_none() {
-                        continue;
-                    }
-                    result_opt
-                }
-                Some((line, Err(err))) => {
-                    Some(Err(format!("Error in line {}: {}", line, err)))
-                }
-            };
-            return result;
-        }
     }
 }
 

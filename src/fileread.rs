@@ -56,52 +56,6 @@ where
     }
 }
 
-pub struct LogEntries<T> {
-    lines: T,
-    line_count: usize,
-}
-
-impl<T, E> LogEntries<T>
-where
-    T: Iterator<Item = Result<String, E>>,
-    E: Display,
-{
-    pub fn new(src: T) -> LogEntries<T> {
-        LogEntries {
-            lines: src,
-            line_count: 0,
-        }
-    }
-}
-
-impl<T, E> Iterator for LogEntries<T>
-where
-    T: Iterator<Item = Result<String, E>>,
-    E: Display,
-{
-    type Item = (usize, Result<TimelogEntry, String>);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            match self.lines.next() {
-                None => return None,
-                Some(result) => {
-                    self.line_count += 1;
-                    match result {
-                        Err(err) => return Some((self.line_count, Err(err.to_string()))),
-                        Ok(line) => match LogLine::from_str(line.as_str()) {
-                            Err(err) => return Some((self.line_count, Err(err))),
-                            Ok(LogLine::Entry(entry)) => {
-                                return Some((self.line_count, Ok(entry)));
-                            }
-                            Ok(LogLine::Ignored(_)) => {}
-                        },
-                    }
-                }
-            }
-        }
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct DayCollection {
