@@ -1,28 +1,36 @@
-use std::{env, io};
+use std::io;
 use std::fs::File;
 use std::io::BufRead;
 use std::ops::Sub;
 use std::time::Duration;
 
 use chrono::{DateTime, FixedOffset};
+use clap::{App, Arg};
 
 use timetrack::fileread::{DayCollector, LogLines};
 use timetrack::taskregistry::TaskRegistry;
 
 fn main() -> Result<(), String> {
-    let args: Vec<String> = env::args().collect();
+    let matches = App::new("timetrack")
+        .about("Command-line time tracking tool")
+        .arg(Arg::with_name("file")
+            .short("f")
+            .long("file")
+            .value_name("FILE")
+            .help("Path to input file")
+            .required(true)
+            .takes_value(true)
+        )
+        .get_matches();
 
-    if args.len() != 2 {
-        println!("Usage: {} LOG_FILE_PATH", args[0]);
-        std::process::exit(1);
-    }
+    let file_path = matches.value_of("file").unwrap();
 
-    print_summaries(args[1].as_str())?;
+    print_summaries(file_path)?;
     Ok(())
 }
 
 fn print_summaries(path: &str) -> Result<(), String> {
-    let file = File::open(path).map_err(|err| format!("Could not read file: {}", err))?;
+    let file = File::open(path).map_err(|err| format!("Could not read file {:?}: {}", path, err))?;
     let lines = io::BufReader::new(file).lines();
     let lines = LogLines::new(lines);
     let day_collector = DayCollector::new(lines);
