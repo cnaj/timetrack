@@ -56,13 +56,11 @@ fn print_day_summary(registry: &TaskRegistry) -> Result<(), String> {
         // skip Pause task
         work_time += task.duration;
     }
-    println!();
 
     println!(
         "-- Work time: {}",
         format_duration(&registry.get_work_duration())
     );
-    println!();
 
     println!("-- Work hours:");
     println!("on   \toff  \ttime \tpause");
