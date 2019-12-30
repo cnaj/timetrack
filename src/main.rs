@@ -1,17 +1,18 @@
-use std::io;
 use std::fs::File;
+use std::io;
 use std::io::BufRead;
 use std::ops::Sub;
 use std::time::Duration;
 
 use chrono::{DateTime, FixedOffset};
-use clap::{App, Arg};
+use clap::{App, AppSettings, Arg, SubCommand};
 
 use timetrack::fileread::{DayCollector, LogLines};
 use timetrack::taskregistry::TaskRegistry;
 
 fn main() -> Result<(), String> {
     let matches = App::new("timetrack")
+        .setting(AppSettings::SubcommandRequired)
         .about("Command-line time tracking tool")
         .arg(Arg::with_name("file")
             .short("f")
@@ -21,24 +22,54 @@ fn main() -> Result<(), String> {
             .required(true)
             .takes_value(true)
         )
+        .subcommand(SubCommand::with_name("summary")
+            .about("Displays a task and time summary per work day")
+            .arg(Arg::with_name("scope")
+                .possible_value("all")
+                .possible_value("last")
+                .default_value("last")
+                .help("Limits the output to the given scope")
+            )
+        )
         .get_matches();
 
     let file_path = matches.value_of("file").unwrap();
 
-    print_summaries(file_path)?;
+    match matches.subcommand() {
+        ("summary", Some(summary_matches)) => {
+            let only_last = "last" == summary_matches.value_of("scope").unwrap();
+
+            print_summaries(file_path, only_last)?;
+        }
+        _ => unreachable!(),
+    };
+
     Ok(())
 }
 
-fn print_summaries(path: &str) -> Result<(), String> {
+fn print_summaries(path: &str, only_last: bool) -> Result<(), String> {
     let file = File::open(path).map_err(|err| format!("Could not read file {:?}: {}", path, err))?;
     let lines = io::BufReader::new(file).lines();
     let lines = LogLines::new(lines);
     let day_collector = DayCollector::new(lines);
 
-    for day in day_collector {
-        let day = day?;
-        if let Some(tasks) = day.tasks {
-            print_day_summary(&tasks)?;
+    if only_last {
+        if let Some(day) = day_collector.last() {
+            if let Some(tasks) = day?.tasks {
+                print_day_summary(&tasks)?;
+            } else  {
+                println!("No data sets found")
+            }
+        } else {
+            println!("No data sets found")
+        }
+    } else {
+        for day in day_collector {
+            let day = day?;
+            if let Some(tasks) = day.tasks {
+                print_day_summary(&tasks)?;
+                println!();
+            }
         }
     }
 
@@ -81,7 +112,6 @@ fn print_day_summary(registry: &TaskRegistry) -> Result<(), String> {
         );
     }
 
-    println!();
     Ok(())
 }
 
