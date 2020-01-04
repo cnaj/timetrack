@@ -111,9 +111,7 @@ mod tests {
         src.push_str(DAY_1);
         src.push_str(DAY_2);
 
-        let lines = src
-            .lines()
-            .map(|line| io::Result::Ok(line.to_owned()));
+        let lines = src.lines().map(|line| io::Result::Ok(line.to_owned()));
         let lines = LogLines::new(lines);
         let day_collector = DayCollector::new(lines);
 
@@ -145,9 +143,7 @@ mod tests {
         src.push_str(DAY_2);
         src.push_str(BLANK_LINES);
 
-        let lines = src
-            .lines()
-            .map(|line| io::Result::Ok(line.to_owned()));
+        let lines = src.lines().map(|line| io::Result::Ok(line.to_owned()));
         let lines = LogLines::new(lines);
 
         let day_collector = DayCollector::new(lines);
@@ -174,9 +170,7 @@ mod tests {
     fn test_day_1_tasks() {
         let src = DAY_1;
 
-        let lines = src
-            .lines()
-            .map(|line| io::Result::Ok(line.to_owned()));
+        let lines = src.lines().map(|line| io::Result::Ok(line.to_owned()));
         let lines = LogLines::new(lines);
         let day_collector = DayCollector::new(lines);
 
@@ -191,9 +185,7 @@ mod tests {
     fn test_day_2_tasks() {
         let src = DAY_2;
 
-        let lines = src
-            .lines()
-            .map(|line| io::Result::Ok(line.to_owned()));
+        let lines = src.lines().map(|line| io::Result::Ok(line.to_owned()));
         let lines = LogLines::new(lines);
         let day_collector = DayCollector::new(lines);
 
@@ -214,9 +206,7 @@ mod tests {
         src.push_str(DAY_2);
         src.push_str(BLANK_LINES);
 
-        let lines = src
-            .lines()
-            .map(|line| io::Result::Ok(line.to_owned()));
+        let lines = src.lines().map(|line| io::Result::Ok(line.to_owned()));
         let lines = LogLines::new(lines);
         let day_collector = DayCollector::new(lines);
 
@@ -231,9 +221,7 @@ mod tests {
     fn test_work_time() {
         let src = DAY_3;
 
-        let lines = src
-            .lines()
-            .map(|line| io::Result::Ok(line.to_owned()));
+        let lines = src.lines().map(|line| io::Result::Ok(line.to_owned()));
         let lines = LogLines::new(lines);
         let day_collector = DayCollector::new(lines);
 

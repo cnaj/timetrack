@@ -3,9 +3,9 @@ use std::io;
 use std::io::BufRead;
 use std::path::Path;
 
+use crate::taskregistry::{TaskRegistry, TaskRegistryBuilder};
 use crate::timelog::TimelogEntry;
 use std::fmt::Display;
-use crate::taskregistry::{TaskRegistryBuilder, TaskRegistry};
 use std::iter::Enumerate;
 
 #[derive(Eq, PartialEq, Debug, Clone)]
@@ -35,7 +35,9 @@ where
     E: Display,
 {
     pub fn new(src: T) -> LogLines<T> {
-        LogLines { lines: src.enumerate() }
+        LogLines {
+            lines: src.enumerate(),
+        }
     }
 }
 
@@ -56,15 +58,13 @@ where
     }
 }
 
-
 #[derive(Debug, Clone)]
 pub struct DayCollection {
     pub tasks: Option<TaskRegistry>,
     pub lines: Vec<(usize, LogLine)>,
 }
 
-pub struct DayCollector<I>
-{
+pub struct DayCollector<I> {
     it: I,
     builder: TaskRegistryBuilder,
     done: bool,
@@ -101,20 +101,24 @@ where
         }
     }
 
-    fn process_next_line(&mut self, n: usize, log_line: LogLine)
-                         -> Option<Result<DayCollection, String>>
-    {
+    fn process_next_line(
+        &mut self,
+        n: usize,
+        log_line: LogLine,
+    ) -> Option<Result<DayCollection, String>> {
         self.buffer.push((n + 1, log_line.clone()));
 
         match log_line {
             LogLine::Entry(entry) => {
                 let result = match self.builder.add_entry(&entry) {
-                    Err(err) => Some(Err(format!("{} (while processing {:?} in line {})", err, entry, n))),
+                    Err(err) => Some(Err(format!(
+                        "{} (while processing {:?} in line {})",
+                        err, entry, n
+                    ))),
                     Ok(tasks_opt) => tasks_opt
                         .map(|tasks| {
                             let len = self.buffer.len() - self.lookahead - 1;
-                            let lines: Vec<(usize, LogLine)> =
-                                self.buffer.drain(..len).collect();
+                            let lines: Vec<(usize, LogLine)> = self.buffer.drain(..len).collect();
                             let result = DayCollection {
                                 tasks: Some(tasks.clone()),
                                 lines,
@@ -122,7 +126,7 @@ where
 
                             result
                         })
-                        .map(|res| Ok(res))
+                        .map(|res| Ok(res)),
                 };
 
                 self.lookahead = 0;
@@ -157,8 +161,8 @@ where
                 None => return self.process_eof(),
                 Some((n, line_res)) => match line_res {
                     Err(err) => return Some(Err(format!("Input error on line {}: {}", n, err))),
-                    Ok(line) => (n, line)
-                }
+                    Ok(line) => (n, line),
+                },
             };
 
             let result = self.process_next_line(n, line);

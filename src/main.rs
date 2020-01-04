@@ -14,22 +14,25 @@ fn main() -> Result<(), String> {
     let matches = App::new("timetrack")
         .setting(AppSettings::SubcommandRequired)
         .about("Command-line time tracking tool")
-        .arg(Arg::with_name("file")
-            .short("f")
-            .long("file")
-            .value_name("FILE")
-            .help("Path to input file")
-            .required(true)
-            .takes_value(true)
+        .arg(
+            Arg::with_name("file")
+                .short("f")
+                .long("file")
+                .value_name("FILE")
+                .help("Path to input file")
+                .required(true)
+                .takes_value(true),
         )
-        .subcommand(SubCommand::with_name("summary")
-            .about("Displays a task and time summary per work day")
-            .arg(Arg::with_name("scope")
-                .possible_value("all")
-                .possible_value("last")
-                .default_value("last")
-                .help("Limits the output to the given scope")
-            )
+        .subcommand(
+            SubCommand::with_name("summary")
+                .about("Displays a task and time summary per work day")
+                .arg(
+                    Arg::with_name("scope")
+                        .possible_value("all")
+                        .possible_value("last")
+                        .default_value("last")
+                        .help("Limits the output to the given scope"),
+                ),
         )
         .get_matches();
 
@@ -48,7 +51,8 @@ fn main() -> Result<(), String> {
 }
 
 fn print_summaries(path: &str, only_last: bool) -> Result<(), String> {
-    let file = File::open(path).map_err(|err| format!("Could not read file {:?}: {}", path, err))?;
+    let file =
+        File::open(path).map_err(|err| format!("Could not read file {:?}: {}", path, err))?;
     let lines = io::BufReader::new(file).lines();
     let lines = LogLines::new(lines);
     let day_collector = DayCollector::new(lines);
@@ -57,7 +61,7 @@ fn print_summaries(path: &str, only_last: bool) -> Result<(), String> {
         if let Some(day) = day_collector.last() {
             if let Some(tasks) = day?.tasks {
                 print_day_summary(&tasks)?;
-            } else  {
+            } else {
                 println!("No data sets found")
             }
         } else {
