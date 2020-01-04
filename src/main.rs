@@ -79,10 +79,8 @@ fn print_summaries(path: &str, scope: SummaryScope) -> Result<(), String> {
         SummaryScope::All => {
             for day in day_collector {
                 let day = day?;
-                if let Some(tasks) = day.tasks {
-                    print_day_summary(&tasks)?;
-                    println!();
-                }
+                print_day_summary(&day.tasks)?;
+                println!();
             }
         }
         SummaryScope::Last(n) => {
@@ -90,12 +88,10 @@ fn print_summaries(path: &str, scope: SummaryScope) -> Result<(), String> {
 
             for day in day_collector {
                 let day = day?;
-                if let Some(tasks) = day.tasks {
-                    if day_tasks.len() == n {
-                        day_tasks.pop_front();
-                    }
-                    day_tasks.push_back(tasks);
+                if day_tasks.len() == n {
+                    day_tasks.pop_front();
                 }
+                day_tasks.push_back(day.tasks);
             }
 
             for tasks in day_tasks {

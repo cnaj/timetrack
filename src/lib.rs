@@ -120,14 +120,14 @@ mod tests {
 
         let day1 = days[0].as_ref().unwrap();
         assert_eq!(
-            day1.tasks.as_ref().unwrap().get_start_time().unwrap(),
+            day1.tasks.get_start_time().unwrap(),
             DateTime::parse_from_rfc3339("2019-11-21T07:30:00+01:00").unwrap()
         );
         assert_eq!(day1.lines.len(), 9);
 
         let day2 = days[1].as_ref().unwrap();
         assert_eq!(
-            day2.tasks.as_ref().unwrap().get_start_time().unwrap(),
+            day2.tasks.get_start_time().unwrap(),
             DateTime::parse_from_rfc3339("2019-11-22T07:00:00+01:00").unwrap()
         );
         assert_eq!(day2.lines.len(), 21);
@@ -153,14 +153,14 @@ mod tests {
 
         let day1 = days[0].as_ref().unwrap();
         assert_eq!(
-            day1.tasks.as_ref().unwrap().get_start_time().unwrap(),
+            day1.tasks.get_start_time().unwrap(),
             DateTime::parse_from_rfc3339("2019-11-21T07:30:00+01:00").unwrap()
         );
         assert_eq!(day1.lines.len(), 13);
 
         let day2 = days[1].as_ref().unwrap();
         assert_eq!(
-            day2.tasks.as_ref().unwrap().get_start_time().unwrap(),
+            day2.tasks.get_start_time().unwrap(),
             DateTime::parse_from_rfc3339("2019-11-22T07:00:00+01:00").unwrap()
         );
         assert_eq!(day2.lines.len(), 24);
@@ -177,7 +177,7 @@ mod tests {
         let days: Vec<_> = day_collector.collect();
         assert_eq!(days.len(), 1);
 
-        let registry = days[0].as_ref().unwrap().tasks.as_ref().unwrap();
+        let registry = &days[0].as_ref().unwrap().tasks;
         assert_day1_tasks(&registry);
     }
 
@@ -192,7 +192,7 @@ mod tests {
         let days: Vec<_> = day_collector.collect();
         assert_eq!(days.len(), 1);
 
-        let registry = days[0].as_ref().unwrap().tasks.as_ref().unwrap();
+        let registry = &days[0].as_ref().unwrap().tasks;
         assert_day2_tasks(registry);
     }
 
@@ -213,8 +213,8 @@ mod tests {
         let days: Vec<_> = day_collector.collect();
         assert_eq!(days.len(), 2);
 
-        assert_day1_tasks(days[0].as_ref().unwrap().tasks.as_ref().unwrap());
-        assert_day2_tasks(days[1].as_ref().unwrap().tasks.as_ref().unwrap());
+        assert_day1_tasks(&days[0].as_ref().unwrap().tasks);
+        assert_day2_tasks(&days[1].as_ref().unwrap().tasks);
     }
 
     #[test]
@@ -228,7 +228,7 @@ mod tests {
         let days: Vec<_> = day_collector.collect();
         assert_eq!(days.len(), 1);
 
-        assert_day3_work_times(days[0].as_ref().unwrap().tasks.as_ref().unwrap());
+        assert_day3_work_times(&days[0].as_ref().unwrap().tasks);
     }
 
     fn assert_day1_tasks(registry: &TaskRegistry) {

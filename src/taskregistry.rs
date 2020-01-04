@@ -157,7 +157,7 @@ impl TaskRegistryBuilder {
         Ok(result)
     }
 
-    pub fn finish(&mut self) -> Option<TaskRegistry> {
+    pub fn finish(&mut self) -> TaskRegistry {
         if self.state != Idle {
             let now = Local::now()
                 .with_second(0)
@@ -168,12 +168,8 @@ impl TaskRegistryBuilder {
                 .unwrap();
         }
 
-        if self.start_time.is_some() {
-            self.start_time = None;
-            Some(replace(&mut self.task_registry, TaskRegistry::new()))
-        } else {
-            None
-        }
+        self.start_time = None;
+        replace(&mut self.task_registry, TaskRegistry::new())
     }
 
     fn start_work_time(&mut self, entry: &TimelogEntry) {

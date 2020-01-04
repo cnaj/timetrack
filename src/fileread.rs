@@ -60,7 +60,7 @@ where
 
 #[derive(Debug, Clone)]
 pub struct DayCollection {
-    pub tasks: Option<TaskRegistry>,
+    pub tasks: TaskRegistry,
     pub lines: Vec<(usize, LogLine)>,
 }
 
@@ -120,7 +120,7 @@ where
                             let len = self.buffer.len() - self.lookahead - 1;
                             let lines: Vec<(usize, LogLine)> = self.buffer.drain(..len).collect();
                             let result = DayCollection {
-                                tasks: Some(tasks.clone()),
+                                tasks: tasks.clone(),
                                 lines,
                             };
 
