@@ -7,8 +7,14 @@ use std::time::Duration;
 use chrono::{DateTime, FixedOffset};
 use clap::{App, AppSettings, Arg, SubCommand};
 
+use std::collections::VecDeque;
 use timetrack::fileread::{DayCollector, LogLines};
 use timetrack::taskregistry::TaskRegistry;
+
+enum SummaryScope {
+    All,
+    Last(usize),
+}
 
 fn main() -> Result<(), String> {
     let matches = App::new("timetrack")
@@ -25,13 +31,15 @@ fn main() -> Result<(), String> {
         )
         .subcommand(
             SubCommand::with_name("summary")
-                .about("Displays a task and time summary per work day")
-                .arg(
-                    Arg::with_name("scope")
-                        .possible_value("all")
-                        .possible_value("last")
-                        .default_value("last")
-                        .help("Limits the output to the given scope"),
+                .about("Displays a task and time summary per work day.")
+                .unset_setting(AppSettings::SubcommandRequired)
+                .subcommand(
+                    SubCommand::with_name("all").about("Displays tasks for all available days"),
+                )
+                .subcommand(
+                    SubCommand::with_name("last")
+                        .about("Displays tasks of the last days")
+                        .arg(Arg::with_name("number").default_value("1")),
                 ),
         )
         .get_matches();
@@ -40,9 +48,19 @@ fn main() -> Result<(), String> {
 
     match matches.subcommand() {
         ("summary", Some(summary_matches)) => {
-            let only_last = "last" == summary_matches.value_of("scope").unwrap();
+            let scope = match summary_matches.subcommand() {
+                ("all", Some(_)) => SummaryScope::All,
+                ("last", Some(last_matches)) => match last_matches.value_of("number") {
+                    None => SummaryScope::Last(1),
+                    Some(number) => match number.parse::<usize>() {
+                        Ok(n) => SummaryScope::Last(n),
+                        Err(e) => return Err(format!("Invalid number given: {}", e)),
+                    },
+                },
+                _ => SummaryScope::Last(1),
+            };
 
-            print_summaries(file_path, only_last)?;
+            print_summaries(file_path, scope)?;
         }
         _ => unreachable!(),
     };
@@ -50,32 +68,42 @@ fn main() -> Result<(), String> {
     Ok(())
 }
 
-fn print_summaries(path: &str, only_last: bool) -> Result<(), String> {
+fn print_summaries(path: &str, scope: SummaryScope) -> Result<(), String> {
     let file =
         File::open(path).map_err(|err| format!("Could not read file {:?}: {}", path, err))?;
     let lines = io::BufReader::new(file).lines();
     let lines = LogLines::new(lines);
     let day_collector = DayCollector::new(lines);
 
-    if only_last {
-        if let Some(day) = day_collector.last() {
-            if let Some(tasks) = day?.tasks {
-                print_day_summary(&tasks)?;
-            } else {
-                println!("No data sets found")
+    match scope {
+        SummaryScope::All => {
+            for day in day_collector {
+                let day = day?;
+                if let Some(tasks) = day.tasks {
+                    print_day_summary(&tasks)?;
+                    println!();
+                }
             }
-        } else {
-            println!("No data sets found")
         }
-    } else {
-        for day in day_collector {
-            let day = day?;
-            if let Some(tasks) = day.tasks {
+        SummaryScope::Last(n) => {
+            let mut day_tasks = VecDeque::with_capacity(n);
+
+            for day in day_collector {
+                let day = day?;
+                if let Some(tasks) = day.tasks {
+                    if day_tasks.len() == n {
+                        day_tasks.pop_front();
+                    }
+                    day_tasks.push_back(tasks);
+                }
+            }
+
+            for tasks in day_tasks {
                 print_day_summary(&tasks)?;
                 println!();
             }
         }
-    }
+    };
 
     Ok(())
 }
