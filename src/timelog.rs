@@ -10,6 +10,7 @@ pub enum LogEvent {
     Start(String),
     Stop,
     Rename { to: String, from: Option<String> },
+    OffSnapshot,
 }
 
 #[derive(Eq, PartialEq, Debug, Clone)]
