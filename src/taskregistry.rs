@@ -239,6 +239,7 @@ pub struct TaskRegistry {
     names: HashMap<String, usize>,
     work_times: Vec<(DateTime<FixedOffset>, DateTime<FixedOffset>)>,
     work_duration: Duration,
+    last_active: Option<usize>,
 }
 
 impl TaskRegistry {
@@ -248,6 +249,7 @@ impl TaskRegistry {
             names: HashMap::new(),
             work_times: Vec::new(),
             work_duration: Duration::from_secs(0),
+            last_active: None,
         }
     }
 
@@ -271,6 +273,10 @@ impl TaskRegistry {
         self.work_duration
     }
 
+    pub fn get_last_active(&self) -> Option<Task> {
+        self.last_active.map(|i| self.tasks.get(i).unwrap().clone())
+    }
+
     fn record_task_time(
         &mut self,
         name: &str,
@@ -288,20 +294,28 @@ impl TaskRegistry {
     }
 
     fn add_task<T: ToString + AsRef<str>>(&mut self, name: T, active: bool) {
-        match self.names.get(name.as_ref()) {
+        let i = match self.names.get(name.as_ref()) {
             Some(&i) => {
                 let task = self.tasks.get_mut(i).unwrap();
                 task.active = active;
+                i
             }
             None => {
-                self.names.insert(name.to_string(), self.tasks.len());
+                let i = self.tasks.len();
+                self.names.insert(name.to_string(), i);
                 self.tasks.push(Task {
                     name: name.to_string(),
                     duration: Duration::from_secs(0),
                     active,
                 });
+                i
             }
         };
+        if UNDEFINED_TASK_NAME == name.as_ref() {
+            self.last_active = None;
+        } else if active {
+            self.last_active = Some(i);
+        }
     }
 
     fn rename_task(&mut self, to: &String, from: &String) -> Result<(), String> {

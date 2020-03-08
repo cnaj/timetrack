@@ -1,3 +1,4 @@
+use std::collections::VecDeque;
 use std::fs::File;
 use std::io;
 use std::io::BufRead;
@@ -5,9 +6,8 @@ use std::ops::Sub;
 use std::time::Duration;
 
 use chrono::{DateTime, FixedOffset};
-use clap::{App, AppSettings, Arg, SubCommand};
+use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 
-use std::collections::VecDeque;
 use timetrack::fileread::{DayCollector, LogLines};
 use timetrack::taskregistry::TaskRegistry;
 
@@ -42,28 +42,56 @@ fn main() -> Result<(), String> {
                         .arg(Arg::with_name("number").default_value("1")),
                 ),
         )
+        .subcommand(
+            SubCommand::with_name("last-active").about("Displays the last recorded active task"),
+        )
         .get_matches();
 
     let file_path = matches.value_of("file").unwrap();
 
     match matches.subcommand() {
-        ("summary", Some(summary_matches)) => {
-            let scope = match summary_matches.subcommand() {
-                ("all", Some(_)) => SummaryScope::All,
-                ("last", Some(last_matches)) => match last_matches.value_of("number") {
-                    None => SummaryScope::Last(1),
-                    Some(number) => match number.parse::<usize>() {
-                        Ok(n) => SummaryScope::Last(n),
-                        Err(e) => return Err(format!("Invalid number given: {}", e)),
-                    },
-                },
-                _ => SummaryScope::Last(1),
-            };
-
-            print_summaries(file_path, scope)?;
-        }
+        ("summary", Some(sub_matches)) => cmd_summary(sub_matches, file_path)?,
+        ("last-active", Some(_)) => cmd_last_active(file_path)?,
         _ => unreachable!(),
     };
+
+    Ok(())
+}
+
+fn cmd_summary(matches: &ArgMatches, file_path: &str) -> Result<(), String> {
+    let scope = match matches.subcommand() {
+        ("all", Some(_)) => SummaryScope::All,
+        ("last", Some(last_matches)) => match last_matches.value_of("number") {
+            None => SummaryScope::Last(1),
+            Some(number) => match number.parse::<usize>() {
+                Ok(n) => SummaryScope::Last(n),
+                Err(e) => return Err(format!("Invalid number given: {}", e)),
+            },
+        },
+        _ => SummaryScope::Last(1),
+    };
+
+    print_summaries(file_path, scope)
+}
+
+fn cmd_last_active(path: &str) -> Result<(), String> {
+    let file =
+        File::open(path).map_err(|err| format!("Could not read file {:?}: {}", path, err))?;
+    let lines = io::BufReader::new(file).lines();
+    let lines = LogLines::new(lines);
+    let day_collector = DayCollector::new(lines);
+
+    let last_active = match day_collector.last() {
+        Some(day_result) => {
+            let tasks = day_result?.tasks;
+            tasks.get_last_active()
+        }
+        None => None,
+    };
+
+    if last_active.is_some() {
+        println!("{}", last_active.unwrap().name);
+    }
 
     Ok(())
 }

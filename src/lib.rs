@@ -84,7 +84,6 @@ mod tests {
 2019-11-26T17:53+0100	off
 "#;
 
-    #[allow(dead_code)]
     const DAY_4: &'static str = r#"2019-11-28T08:55+0100	on
 2019-11-28T09:08+0100	start	Bugfix Export
 2019-11-28T09:30+0100	start	Sprint planning
@@ -102,6 +101,7 @@ mod tests {
 2019-11-28T15:31+0100	stop
 2019-11-28T15:40+0100	start	FRONTENT - release notes
 2019-11-28T16:21+0100	start	BACKEND - logging framework
+2019-11-28T17:52+0100	stop
 2019-11-28T18:07+0100	off
 "#;
 
@@ -198,6 +198,23 @@ mod tests {
         assert_eq!(days.len(), 1);
 
         assert_day3_work_times(&days[0].tasks);
+    }
+
+    #[test]
+    fn test_last_active() {
+        let days = into_days(DAY_1);
+        let tasks = &days[0].tasks;
+
+        let expected = Task::new("BACKEND-input-parsing", 320);
+        assert_eq!(tasks.get_last_active(), Some(expected));
+    }
+
+    #[test]
+    fn test_last_active_nn() {
+        let days = into_days(DAY_4);
+        let tasks = &days[0].tasks;
+
+        assert_eq!(tasks.get_last_active(), None);
     }
 
     fn assert_day1_tasks(registry: &TaskRegistry) {
