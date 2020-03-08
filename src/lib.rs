@@ -11,7 +11,7 @@ mod tests {
 
     use chrono::DateTime;
 
-    use crate::fileread::{DayCollector, LogLines};
+    use crate::fileread::{DayCollection, DayCollector, LogLines};
     use crate::taskregistry::{Task, TaskRegistry};
 
     const BLANK_LINES: &'static str = r#"
@@ -111,21 +111,17 @@ mod tests {
         src.push_str(DAY_1);
         src.push_str(DAY_2);
 
-        let lines = src.lines().map(|line| io::Result::Ok(line.to_owned()));
-        let lines = LogLines::new(lines);
-        let day_collector = DayCollector::new(lines);
-
-        let days: Vec<_> = day_collector.collect();
+        let days = into_days(src);
         assert_eq!(days.len(), 2);
 
-        let day1 = days[0].as_ref().unwrap();
+        let day1 = &days[0];
         assert_eq!(
             day1.tasks.get_start_time().unwrap(),
             DateTime::parse_from_rfc3339("2019-11-21T07:30:00+01:00").unwrap()
         );
         assert_eq!(day1.lines.len(), 9);
 
-        let day2 = days[1].as_ref().unwrap();
+        let day2 = &days[1];
         assert_eq!(
             day2.tasks.get_start_time().unwrap(),
             DateTime::parse_from_rfc3339("2019-11-22T07:00:00+01:00").unwrap()
@@ -143,22 +139,17 @@ mod tests {
         src.push_str(DAY_2);
         src.push_str(BLANK_LINES);
 
-        let lines = src.lines().map(|line| io::Result::Ok(line.to_owned()));
-        let lines = LogLines::new(lines);
-
-        let day_collector = DayCollector::new(lines);
-
-        let days: Vec<_> = day_collector.collect();
+        let days = into_days(src);
         assert_eq!(days.len(), 2);
 
-        let day1 = days[0].as_ref().unwrap();
+        let day1 = &days[0];
         assert_eq!(
             day1.tasks.get_start_time().unwrap(),
             DateTime::parse_from_rfc3339("2019-11-21T07:30:00+01:00").unwrap()
         );
         assert_eq!(day1.lines.len(), 13);
 
-        let day2 = days[1].as_ref().unwrap();
+        let day2 = &days[1];
         assert_eq!(
             day2.tasks.get_start_time().unwrap(),
             DateTime::parse_from_rfc3339("2019-11-22T07:00:00+01:00").unwrap()
@@ -168,31 +159,19 @@ mod tests {
 
     #[test]
     fn test_day_1_tasks() {
-        let src = DAY_1;
-
-        let lines = src.lines().map(|line| io::Result::Ok(line.to_owned()));
-        let lines = LogLines::new(lines);
-        let day_collector = DayCollector::new(lines);
-
-        let days: Vec<_> = day_collector.collect();
+        let days = into_days(DAY_1);
         assert_eq!(days.len(), 1);
 
-        let registry = &days[0].as_ref().unwrap().tasks;
+        let registry = &days[0].tasks;
         assert_day1_tasks(&registry);
     }
 
     #[test]
     fn test_day_2_tasks() {
-        let src = DAY_2;
-
-        let lines = src.lines().map(|line| io::Result::Ok(line.to_owned()));
-        let lines = LogLines::new(lines);
-        let day_collector = DayCollector::new(lines);
-
-        let days: Vec<_> = day_collector.collect();
+        let days = into_days(DAY_2);
         assert_eq!(days.len(), 1);
 
-        let registry = &days[0].as_ref().unwrap().tasks;
+        let registry = &days[0].tasks;
         assert_day2_tasks(registry);
     }
 
@@ -206,29 +185,19 @@ mod tests {
         src.push_str(DAY_2);
         src.push_str(BLANK_LINES);
 
-        let lines = src.lines().map(|line| io::Result::Ok(line.to_owned()));
-        let lines = LogLines::new(lines);
-        let day_collector = DayCollector::new(lines);
-
-        let days: Vec<_> = day_collector.collect();
+        let days = into_days(src);
         assert_eq!(days.len(), 2);
 
-        assert_day1_tasks(&days[0].as_ref().unwrap().tasks);
-        assert_day2_tasks(&days[1].as_ref().unwrap().tasks);
+        assert_day1_tasks(&days[0].tasks);
+        assert_day2_tasks(&days[1].tasks);
     }
 
     #[test]
     fn test_work_time() {
-        let src = DAY_3;
-
-        let lines = src.lines().map(|line| io::Result::Ok(line.to_owned()));
-        let lines = LogLines::new(lines);
-        let day_collector = DayCollector::new(lines);
-
-        let days: Vec<_> = day_collector.collect();
+        let days = into_days(DAY_3);
         assert_eq!(days.len(), 1);
 
-        assert_day3_work_times(&days[0].as_ref().unwrap().tasks);
+        assert_day3_work_times(&days[0].tasks);
     }
 
     fn assert_day1_tasks(registry: &TaskRegistry) {
@@ -277,5 +246,17 @@ mod tests {
             registry.get_work_duration(),
             Duration::from_secs(8 * 3600 + 54 * 60)
         );
+    }
+
+    fn into_days<T: AsRef<str>>(src: T) -> Vec<DayCollection> {
+        let lines = src
+            .as_ref()
+            .lines()
+            .map(|line| io::Result::Ok(line.to_owned()));
+        let lines = LogLines::new(lines);
+        let day_collector = DayCollector::new(lines);
+
+        let days_result: Result<Vec<_>, _> = day_collector.collect();
+        days_result.unwrap()
     }
 }
