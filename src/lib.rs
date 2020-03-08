@@ -48,7 +48,7 @@ mod tests {
 2019-11-22T11:43+0100	start	Daily
 2019-11-22T11:51+0100	start	BACKEND-error-handling
 2019-11-22T12:48+0100	off
-2019-11-22T13:54+0100	continue
+2019-11-22T13:54+0100	resume
 2019-11-22T13:58+0100	start	CHORE - instable tests
 2019-11-22T14:06+0100	off
 2019-11-22T14:06+0100	start	CHORE - instable tests
@@ -59,13 +59,13 @@ mod tests {
 2019-11-26T07:10+0100	start	FRONTEND - error handling
 2019-11-26T07:34+0100	start	BACKEND - query endpoint
 2019-11-26T07:48+0100	off
-2019-11-26T08:12+0100	continue
+2019-11-26T08:12+0100	resume
 2019-11-26T08:14+0100	start	time logging
 2019-11-26T08:20+0100	start	CHORE - build system
 2019-11-26T09:19+0100	start	Team discussion
 2019-11-26T09:30+0100	start	BACKEND - query endpoint
 2019-11-26T09:51+0100	off
-2019-11-26T10:43+0100	continue
+2019-11-26T10:43+0100	resume
 2019-11-26T10:58+0100	start	time logging
 2019-11-26T11:10+0100	start	BACKEND - query endpoint
 2019-11-26T11:23+0100	start	BACKEND - integration tests
@@ -95,7 +95,7 @@ mod tests {
 2019-11-28T11:34+0100	start	FRONTEND - translations
 2019-11-28T11:45+0100	start	Daily
 2019-11-28T12:05+0100	off
-2019-11-28T12:53+0100	continue
+2019-11-28T12:53+0100	resume
 2019-11-28T12:58+0100	start	Sprint Retro
 2019-11-28T14:43+0100	start	BACKEND - logging framework
 2019-11-28T15:24+0100	start	FRONTEND - translations

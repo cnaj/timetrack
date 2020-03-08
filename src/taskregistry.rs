@@ -81,7 +81,7 @@ impl TaskRegistryBuilder {
                     self.start_task(&entry.time, UNDEFINED_TASK_NAME);
                     DayTracking
                 }
-                LogEvent::Continue => {
+                LogEvent::Resume => {
                     self.start_work_time(entry);
                     self.stop_task(PAUSE_TASK_NAME, &entry.time)?;
                     self.start_task(&entry.time, UNDEFINED_TASK_NAME);

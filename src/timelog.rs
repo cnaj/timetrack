@@ -1,11 +1,11 @@
-use crate::timelog::LogEvent::{Cancel, Continue, Off, On, Rename, Start, Stop};
+use crate::timelog::LogEvent::{Cancel, Resume, Off, On, Rename, Start, Stop};
 use chrono::{DateTime, FixedOffset};
 
 #[derive(Eq, PartialEq, Debug, Clone)]
 pub enum LogEvent {
     On,
     Off,
-    Continue,
+    Resume,
     Cancel,
     Start(String),
     Stop,
@@ -48,7 +48,7 @@ impl TimelogEntry {
         let event: LogEvent = match event_part {
             "on" => On,
             "off" => Off,
-            "continue" => Continue,
+            "resume" => Resume,
             "cancel" => Cancel,
             "start" => {
                 let name = part_it.next().ok_or("expected task name")?;
@@ -95,11 +95,11 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_line_continue() {
-        let entry = TimelogEntry::parse_from_str("2019-11-10T16:04+0100\tcontinue");
+    fn test_parse_line_resume() {
+        let entry = TimelogEntry::parse_from_str("2019-11-10T16:04+0100\tresume");
         let expected = TimelogEntry::new(
             &DateTime::parse_from_rfc3339("2019-11-10T16:04:00+01:00").unwrap(),
-            Continue,
+            Resume,
         );
         assert_eq!(entry, Ok(expected));
     }
