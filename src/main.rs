@@ -29,6 +29,9 @@ fn main() -> Result<(), String> {
                 .takes_value(true),
         )
         .subcommand(
+            SubCommand::with_name("last-active").about("Displays the last recorded active task"),
+        )
+        .subcommand(
             SubCommand::with_name("summary")
                 .about("Displays a task and time summary per work day.")
                 .subcommand(
@@ -40,16 +43,15 @@ fn main() -> Result<(), String> {
                         .arg(Arg::with_name("number").default_value("1")),
                 ),
         )
-        .subcommand(
-            SubCommand::with_name("last-active").about("Displays the last recorded active task"),
-        )
+        .subcommand(SubCommand::with_name("tasks").about("Displays a list of recorded tasks"))
         .get_matches();
 
     let file_path = matches.value_of("file").unwrap();
 
     match matches.subcommand() {
-        ("summary", Some(sub_matches)) => cmd_summary(sub_matches, file_path)?,
         ("last-active", Some(_)) => cmd_last_active(file_path)?,
+        ("summary", Some(sub_matches)) => cmd_summary(sub_matches, file_path)?,
+        ("tasks", Some(_)) => cmd_tasks(file_path)?,
         _ => print_summaries(file_path, SummaryScope::Last(1))?,
     };
 
@@ -94,6 +96,33 @@ fn cmd_last_active(path: &str) -> Result<(), String> {
     Ok(())
 }
 
+fn cmd_tasks(path: &str) -> Result<(), String> {
+    let file =
+        File::open(path).map_err(|err| format!("Could not read file {:?}: {}", path, err))?;
+    let lines = io::BufReader::new(file).lines();
+    let lines = LogLines::new(lines);
+    let day_collector = DayCollector::new(lines);
+
+    match day_collector.last() {
+        Some(day_result) => {
+            let registry = day_result?.tasks;
+            let tasks = registry.get_tasks();
+
+            println!("#\ttime\ttask name");
+            tasks.iter().enumerate().skip(1).for_each(|(n, task)| {
+                println!("{}\t{}", n, task);
+            });
+            println!(
+                "\t{}\ttotal work time",
+                format_duration(&registry.get_work_duration())
+            );
+        }
+        None => {}
+    };
+
+    Ok(())
+}
+
 fn print_summaries(path: &str, scope: SummaryScope) -> Result<(), String> {
     let file =
         File::open(path).map_err(|err| format!("Could not read file {:?}: {}", path, err))?;
@@ -134,12 +163,6 @@ fn print_day_summary(registry: &TaskRegistry) -> Result<(), String> {
     println!("=== {:?}", registry.get_start_time()?);
     for task in registry.get_tasks() {
         println!("{}", task);
-    }
-
-    let mut work_time = Duration::from_secs(0);
-    for task in registry.get_tasks().iter().skip(1) {
-        // skip Pause task
-        work_time += task.duration;
     }
 
     println!(
