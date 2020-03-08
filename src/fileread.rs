@@ -50,10 +50,11 @@ where
 
     fn next(&mut self) -> Option<Self::Item> {
         self.lines.next().map(|(n, line)| {
+            let line_nr = n + 1;
             let line = line
-                .map_err(|err| format!("Could not read line nr. {}: {}", n, err))
+                .map_err(|err| format!("Could not read line nr. {}: {}", line_nr, err))
                 .and_then(|line| LogLine::from_str(line.as_str()));
-            (n, line)
+            (line_nr, line)
         })
     }
 }
