@@ -6,7 +6,7 @@ use std::ops::Sub;
 use std::time::Duration;
 
 use chrono::{DateTime, FixedOffset};
-use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
+use clap::{App, Arg, ArgMatches, SubCommand};
 
 use timetrack::fileread::{DayCollector, LogLines};
 use timetrack::taskregistry::TaskRegistry;
@@ -18,7 +18,6 @@ enum SummaryScope {
 
 fn main() -> Result<(), String> {
     let matches = App::new("timetrack")
-        .setting(AppSettings::SubcommandRequired)
         .about("Command-line time tracking tool")
         .arg(
             Arg::with_name("file")
@@ -32,7 +31,6 @@ fn main() -> Result<(), String> {
         .subcommand(
             SubCommand::with_name("summary")
                 .about("Displays a task and time summary per work day.")
-                .unset_setting(AppSettings::SubcommandRequired)
                 .subcommand(
                     SubCommand::with_name("all").about("Displays tasks for all available days"),
                 )
@@ -52,7 +50,7 @@ fn main() -> Result<(), String> {
     match matches.subcommand() {
         ("summary", Some(sub_matches)) => cmd_summary(sub_matches, file_path)?,
         ("last-active", Some(_)) => cmd_last_active(file_path)?,
-        _ => unreachable!(),
+        _ => print_summaries(file_path, SummaryScope::Last(1))?,
     };
 
     Ok(())
