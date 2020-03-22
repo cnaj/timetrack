@@ -1,5 +1,6 @@
 extern crate chrono;
 
+pub mod cmd;
 pub mod fileread;
 pub mod print;
 pub mod taskregistry;
