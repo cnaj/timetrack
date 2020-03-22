@@ -2,14 +2,11 @@ use std::collections::VecDeque;
 use std::fs::File;
 use std::io;
 use std::io::BufRead;
-use std::ops::Sub;
-use std::time::Duration;
 
-use chrono::{DateTime, FixedOffset};
 use clap::{App, Arg, ArgMatches, SubCommand};
 
 use timetrack::fileread::{DayCollector, LogLines};
-use timetrack::taskregistry::TaskRegistry;
+use timetrack::print;
 
 enum SummaryScope {
     All,
@@ -107,26 +104,11 @@ fn cmd_tasks(mut w: impl io::Write, path: &str) -> Result<(), String> {
     match day_collector.last() {
         Some(day_result) => {
             let registry = day_result?.tasks;
-            print_tasks(&mut w, &registry).map_err(map_io_err)?;
+            print::tasks(&mut w, &registry).map_err(map_io_err)?;
         }
         None => {}
     };
 
-    Ok(())
-}
-
-fn print_tasks(mut w: impl io::Write, registry: &TaskRegistry) -> io::Result<()> {
-    let tasks = registry.get_tasks();
-
-    writeln!(&mut w, "#\ttime\ttask name")?;
-    for (n, task) in tasks.iter().enumerate().skip(1) {
-        writeln!(&mut w, "{}\t{}", n, task)?;
-    }
-    writeln!(
-        &mut w,
-        "\t{}\ttotal work time",
-        format_duration(&registry.get_work_duration())
-    )?;
     Ok(())
 }
 
@@ -141,7 +123,7 @@ fn print_summaries(mut w: impl io::Write, path: &str, scope: SummaryScope) -> Re
         SummaryScope::All => {
             for day in day_collector {
                 let day = day?;
-                print_day_summary(&mut w, &day.tasks).map_err(map_io_err)?;
+                print::day_summary(&mut w, &day.tasks).map_err(map_io_err)?;
                 writeln!(&mut w).map_err(map_io_err)?;
             }
         }
@@ -157,56 +139,13 @@ fn print_summaries(mut w: impl io::Write, path: &str, scope: SummaryScope) -> Re
             }
 
             for tasks in day_tasks {
-                print_day_summary(&mut w, &tasks).map_err(map_io_err)?;
+                print::day_summary(&mut w, &tasks).map_err(map_io_err)?;
                 writeln!(&mut w).map_err(map_io_err)?;
             }
         }
     };
 
     Ok(())
-}
-
-fn print_day_summary(mut w: impl io::Write, registry: &TaskRegistry) -> io::Result<()> {
-    writeln!(&mut w, "=== {:?}", registry.get_start_time().unwrap())?;
-    for task in registry.get_tasks() {
-        writeln!(&mut w, "{}", task)?;
-    }
-
-    writeln!(
-        &mut w,
-        "-- Work time: {}",
-        format_duration(&registry.get_work_duration())
-    )?;
-
-    writeln!(&mut w, "-- Work hours:")?;
-    writeln!(&mut w, "on   \toff  \ttime \tpause")?;
-    let mut last_off: Option<DateTime<FixedOffset>> = None;
-    for (on, off) in registry.get_work_times() {
-        let delta = format_duration(&off.sub(*on).to_std().unwrap());
-        let pause = match last_off {
-            Some(last_off) => format_duration(&on.sub(last_off).to_std().unwrap()),
-            None => "".to_string(),
-        };
-        last_off = Some(*off);
-        writeln!(
-            &mut w,
-            "{}\t{}\t{}\t{}",
-            on.format("%H:%M"),
-            off.format("%H:%M"),
-            delta,
-            pause
-        )?;
-    }
-
-    Ok(())
-}
-
-fn format_duration(work_time: &Duration) -> String {
-    let secs = work_time.as_secs();
-    let mins = secs / 60;
-    let m = mins % 60;
-    let h = mins / 60;
-    format!("{:02}:{:02}", h, m)
 }
 
 fn map_io_err(err: io::Error) -> String {
