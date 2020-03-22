@@ -48,17 +48,18 @@ fn main() -> Result<(), String> {
 
     let file_path = matches.value_of("file").unwrap();
 
+    let mut w = io::stdout();
     match matches.subcommand() {
-        ("last-active", Some(_)) => cmd_last_active(file_path)?,
-        ("summary", Some(sub_matches)) => cmd_summary(sub_matches, file_path)?,
-        ("tasks", Some(_)) => cmd_tasks(file_path)?,
-        _ => print_summaries(file_path, SummaryScope::Last(1))?,
+        ("last-active", Some(_)) => cmd_last_active(&mut w, file_path)?,
+        ("summary", Some(sub_matches)) => cmd_summary(&mut w, sub_matches, file_path)?,
+        ("tasks", Some(_)) => cmd_tasks(&mut w, file_path)?,
+        _ => print_summaries(&mut w, file_path, SummaryScope::Last(1))?,
     };
 
     Ok(())
 }
 
-fn cmd_summary(matches: &ArgMatches, file_path: &str) -> Result<(), String> {
+fn cmd_summary(mut w: impl io::Write, matches: &ArgMatches, file_path: &str) -> Result<(), String> {
     let scope = match matches.subcommand() {
         ("all", Some(_)) => SummaryScope::All,
         ("last", Some(last_matches)) => match last_matches.value_of("number") {
@@ -71,10 +72,10 @@ fn cmd_summary(matches: &ArgMatches, file_path: &str) -> Result<(), String> {
         _ => SummaryScope::Last(1),
     };
 
-    print_summaries(file_path, scope)
+    print_summaries(&mut w, file_path, scope)
 }
 
-fn cmd_last_active(path: &str) -> Result<(), String> {
+fn cmd_last_active(mut w: impl io::Write, path: &str) -> Result<(), String> {
     let file =
         File::open(path).map_err(|err| format!("Could not read file {:?}: {}", path, err))?;
     let lines = io::BufReader::new(file).lines();
@@ -90,13 +91,13 @@ fn cmd_last_active(path: &str) -> Result<(), String> {
     };
 
     if last_active.is_some() {
-        println!("{}", last_active.unwrap().name);
+        writeln!(&mut w, "{}", last_active.unwrap().name).map_err(map_io_err)?;
     }
 
     Ok(())
 }
 
-fn cmd_tasks(path: &str) -> Result<(), String> {
+fn cmd_tasks(mut w: impl io::Write, path: &str) -> Result<(), String> {
     let file =
         File::open(path).map_err(|err| format!("Could not read file {:?}: {}", path, err))?;
     let lines = io::BufReader::new(file).lines();
@@ -106,16 +107,7 @@ fn cmd_tasks(path: &str) -> Result<(), String> {
     match day_collector.last() {
         Some(day_result) => {
             let registry = day_result?.tasks;
-            let tasks = registry.get_tasks();
-
-            println!("#\ttime\ttask name");
-            tasks.iter().enumerate().skip(1).for_each(|(n, task)| {
-                println!("{}\t{}", n, task);
-            });
-            println!(
-                "\t{}\ttotal work time",
-                format_duration(&registry.get_work_duration())
-            );
+            print_tasks(&mut w, &registry).map_err(map_io_err)?;
         }
         None => {}
     };
@@ -123,7 +115,22 @@ fn cmd_tasks(path: &str) -> Result<(), String> {
     Ok(())
 }
 
-fn print_summaries(path: &str, scope: SummaryScope) -> Result<(), String> {
+fn print_tasks(mut w: impl io::Write, registry: &TaskRegistry) -> io::Result<()> {
+    let tasks = registry.get_tasks();
+
+    writeln!(&mut w, "#\ttime\ttask name")?;
+    for (n, task) in tasks.iter().enumerate().skip(1) {
+        writeln!(&mut w, "{}\t{}", n, task)?;
+    }
+    writeln!(
+        &mut w,
+        "\t{}\ttotal work time",
+        format_duration(&registry.get_work_duration())
+    )?;
+    Ok(())
+}
+
+fn print_summaries(mut w: impl io::Write, path: &str, scope: SummaryScope) -> Result<(), String> {
     let file =
         File::open(path).map_err(|err| format!("Could not read file {:?}: {}", path, err))?;
     let lines = io::BufReader::new(file).lines();
@@ -134,8 +141,8 @@ fn print_summaries(path: &str, scope: SummaryScope) -> Result<(), String> {
         SummaryScope::All => {
             for day in day_collector {
                 let day = day?;
-                print_day_summary(&day.tasks)?;
-                println!();
+                print_day_summary(&mut w, &day.tasks).map_err(map_io_err)?;
+                writeln!(&mut w).map_err(map_io_err)?;
             }
         }
         SummaryScope::Last(n) => {
@@ -150,8 +157,8 @@ fn print_summaries(path: &str, scope: SummaryScope) -> Result<(), String> {
             }
 
             for tasks in day_tasks {
-                print_day_summary(&tasks)?;
-                println!();
+                print_day_summary(&mut w, &tasks).map_err(map_io_err)?;
+                writeln!(&mut w).map_err(map_io_err)?;
             }
         }
     };
@@ -159,19 +166,20 @@ fn print_summaries(path: &str, scope: SummaryScope) -> Result<(), String> {
     Ok(())
 }
 
-fn print_day_summary(registry: &TaskRegistry) -> Result<(), String> {
-    println!("=== {:?}", registry.get_start_time()?);
+fn print_day_summary(mut w: impl io::Write, registry: &TaskRegistry) -> io::Result<()> {
+    writeln!(&mut w, "=== {:?}", registry.get_start_time().unwrap())?;
     for task in registry.get_tasks() {
-        println!("{}", task);
+        writeln!(&mut w, "{}", task)?;
     }
 
-    println!(
+    writeln!(
+        &mut w,
         "-- Work time: {}",
         format_duration(&registry.get_work_duration())
-    );
+    )?;
 
-    println!("-- Work hours:");
-    println!("on   \toff  \ttime \tpause");
+    writeln!(&mut w, "-- Work hours:")?;
+    writeln!(&mut w, "on   \toff  \ttime \tpause")?;
     let mut last_off: Option<DateTime<FixedOffset>> = None;
     for (on, off) in registry.get_work_times() {
         let delta = format_duration(&off.sub(*on).to_std().unwrap());
@@ -180,13 +188,14 @@ fn print_day_summary(registry: &TaskRegistry) -> Result<(), String> {
             None => "".to_string(),
         };
         last_off = Some(*off);
-        println!(
+        writeln!(
+            &mut w,
             "{}\t{}\t{}\t{}",
             on.format("%H:%M"),
             off.format("%H:%M"),
             delta,
             pause
-        );
+        )?;
     }
 
     Ok(())
@@ -198,4 +207,8 @@ fn format_duration(work_time: &Duration) -> String {
     let m = mins % 60;
     let h = mins / 60;
     format!("{:02}:{:02}", h, m)
+}
+
+fn map_io_err(err: io::Error) -> String {
+    err.to_string()
 }
