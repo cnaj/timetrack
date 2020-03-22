@@ -1,0 +1,17 @@
+=== 2019-11-28T08:55:00+01:00
+00:48	Pause
+00:53	n/n
+00:26	Bugfix Export
+00:45	Sprint planning
+00:37	CHORE - Build system
+02:39	BACKEND - logging framework
+00:18	FRONTEND - translations
+00:20	Daily
+01:45	Sprint Retro
+00:41	FRONTEND - release notes
+-- Work time: 08:24
+-- Work hours:
+on   	off  	time 	pause
+08:55	12:05	03:10	
+12:53	18:07	05:14	00:48
+

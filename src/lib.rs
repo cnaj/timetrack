@@ -101,7 +101,7 @@ mod tests {
 2019-11-28T14:43+0100	start	BACKEND - logging framework
 2019-11-28T15:24+0100	start	FRONTEND - translations
 2019-11-28T15:31+0100	stop
-2019-11-28T15:40+0100	start	FRONTENT - release notes
+2019-11-28T15:40+0100	start	FRONTEND - release notes
 2019-11-28T16:21+0100	start	BACKEND - logging framework
 2019-11-28T17:52+0100	stop
 2019-11-28T18:07+0100	off
