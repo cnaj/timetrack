@@ -10,11 +10,15 @@ function tt_update () {
         return 1
     fi
     if [[ -z $2 ]]; then
-        date=()
+        date_args=()
     else
-        date=(-d "$2")
+        date_args=(-d "$2")
     fi
-    printf "%s\t%s\n" "$(date -Iminutes "${date[@]}")" "$1" >> "${TIMETRACK_FILE}"
+    if ! date_str=$(date -Iminutes "${date_args[@]}"); then
+        echo "wrong date format: $2"
+        return 1
+    fi
+    printf "%s\t%s\n" "$date_str" "$1" >> "${TIMETRACK_FILE}"
 }
 
 function tts () {
@@ -37,11 +41,15 @@ function ttoff () {
 
 function tton () {
     if [[ -z $1 ]]; then
-        date=()
+        date_args=()
     else
-        date=(-d "$1")
+        date_args=(-d "$1")
     fi
-    echo -e "\n# $(date "${date[@]}" +%A)" >> "${TIMETRACK_FILE}"
+    if ! date_str=$(date "${date_args[@]}" +%A); then
+        echo "wrong date format: $1"
+        return 1
+    fi
+    printf "\n# %s\n" "$date_str" >> "${TIMETRACK_FILE}"
 
     tt_update on "$1"
 }
@@ -70,6 +78,6 @@ function ttcont () {
         tts "$last" "$1"
     else
         echo "No previous active task, resuming work"
-        ttresume "$1"
+        ttres "$1"
     fi
 }
