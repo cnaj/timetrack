@@ -179,7 +179,9 @@ impl TaskRegistryBuilder {
                 .unwrap()
                 .with_nanosecond(0)
                 .unwrap();
-            self.add_entry(&TimelogEntry::new(&now.into(), LogEvent::OffSnapshot))
+            let time: DateTime<FixedOffset> = now.into();
+            let time = time.with_timezone(now.offset());
+            self.add_entry(&TimelogEntry::new(&time, LogEvent::OffSnapshot))
                 .unwrap();
         }
 
