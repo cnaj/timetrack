@@ -1,8 +1,10 @@
-use crate::taskregistry::TaskRegistry;
-use chrono::{DateTime, FixedOffset};
 use std::io;
 use std::ops::Sub;
 use std::time::Duration;
+
+use chrono::{DateTime, FixedOffset};
+
+use crate::taskregistry::TaskRegistry;
 
 pub fn tasks(mut w: impl io::Write, registry: &TaskRegistry) -> io::Result<()> {
     let tasks = registry.get_tasks();
@@ -49,6 +51,24 @@ pub fn day_summary(mut w: impl io::Write, registry: &TaskRegistry) -> io::Result
             delta,
             pause
         )?;
+    }
+
+    Ok(())
+}
+
+pub fn worklog(mut w: impl io::Write, registry: &TaskRegistry) -> io::Result<()> {
+    let mut first = true;
+    for (on, off) in registry.get_work_times() {
+        let on_label;
+        if first {
+            first = false;
+            on_label = "on";
+            writeln!(&mut w, "# {}", on.format("%A, %B %e"))?;
+        } else {
+            on_label = "resume";
+        }
+        writeln!(&mut w, "{}\t{}", on.format("%FT%R%z"), on_label)?;
+        writeln!(&mut w, "{}\toff", off.format("%FT%R%z"))?;
     }
 
     Ok(())

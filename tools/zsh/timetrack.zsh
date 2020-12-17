@@ -3,6 +3,7 @@
 alias tt='timetrack -f "${TIMETRACK_FILE}"'
 alias ttl="tt summary last"
 alias ttt="tt tasks"
+alias ttw="tt worklog last"
 
 function tt_update () {
     if (( $# == 0 )) then

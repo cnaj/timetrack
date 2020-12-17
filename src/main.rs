@@ -32,6 +32,18 @@ fn main() -> Result<(), String> {
                         .arg(Arg::with_name("number").default_value("1")),
                 ),
         )
+        .subcommand(
+            SubCommand::with_name("worklog")
+                .about("Displays a log of working times per work day, compatible to the input format.")
+                .subcommand(
+                    SubCommand::with_name("all").about("Displays work log for all available days"),
+                )
+                .subcommand(
+                    SubCommand::with_name("last")
+                        .about("Displays work log of the last days")
+                        .arg(Arg::with_name("number").default_value("1")),
+                ),
+        )
         .subcommand(SubCommand::with_name("tasks").about("Displays a list of recorded tasks"))
         .get_matches();
 
@@ -41,6 +53,7 @@ fn main() -> Result<(), String> {
     match matches.subcommand() {
         ("last-active", Some(_)) => cmd::last_active(&mut w, file_path)?,
         ("summary", Some(sub_matches)) => cmd_summary(&mut w, sub_matches, file_path)?,
+        ("worklog", Some(sub_matches)) => cmd_worklog(&mut w, sub_matches, file_path)?,
         ("tasks", Some(_)) => cmd::tasks(&mut w, file_path)?,
         _ => cmd::summaries(&mut w, file_path, SummaryScope::Last(1))?,
     };
@@ -49,6 +62,16 @@ fn main() -> Result<(), String> {
 }
 
 fn cmd_summary(mut w: impl io::Write, matches: &ArgMatches, file_path: &str) -> Result<(), String> {
+    let scope = to_scope(matches)?;
+    cmd::summaries(&mut w, file_path, scope)
+}
+
+fn cmd_worklog(mut w: impl io::Write, matches: &ArgMatches, file_path: &str) -> Result<(), String> {
+    let scope = to_scope(matches)?;
+    cmd::worklog(&mut w, file_path, scope)
+}
+
+fn to_scope(matches: &ArgMatches) -> Result<SummaryScope, String> {
     let scope = match matches.subcommand() {
         ("all", Some(_)) => SummaryScope::All,
         ("last", Some(last_matches)) => match last_matches.value_of("number") {
@@ -61,5 +84,5 @@ fn cmd_summary(mut w: impl io::Write, matches: &ArgMatches, file_path: &str) -> 
         _ => SummaryScope::Last(1),
     };
 
-    cmd::summaries(&mut w, file_path, scope)
+    Ok(scope)
 }

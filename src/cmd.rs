@@ -87,6 +87,42 @@ pub fn summaries(mut w: impl io::Write, path: &str, scope: SummaryScope) -> Resu
     Ok(())
 }
 
+pub fn worklog(mut w: impl io::Write, path: &str, scope: SummaryScope) -> Result<(), String> {
+    let file =
+        File::open(path).map_err(|err| format!("Could not read file {:?}: {}", path, err))?;
+    let lines = io::BufReader::new(file).lines();
+    let lines = LogLines::new(lines);
+    let day_collector = DayCollector::new(lines);
+
+    match scope {
+        SummaryScope::All => {
+            for day in day_collector {
+                let day = day?;
+                print::worklog(&mut w, &day.tasks).map_err(map_io_err)?;
+                writeln!(&mut w).map_err(map_io_err)?;
+            }
+        }
+        SummaryScope::Last(n) => {
+            let mut day_tasks = VecDeque::with_capacity(n);
+
+            for day in day_collector {
+                let day = day?;
+                if day_tasks.len() == n {
+                    day_tasks.pop_front();
+                }
+                day_tasks.push_back(day.tasks);
+            }
+
+            for tasks in day_tasks {
+                print::worklog(&mut w, &tasks).map_err(map_io_err)?;
+                writeln!(&mut w).map_err(map_io_err)?;
+            }
+        }
+    };
+
+    Ok(())
+}
+
 fn map_io_err(err: io::Error) -> String {
     err.to_string()
 }
