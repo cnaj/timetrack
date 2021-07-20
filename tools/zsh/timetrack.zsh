@@ -27,13 +27,27 @@ function tts () {
         echo "wrong parameters"
         return 1
     fi
-    task=$(ttt | grep -P "^$1\t" | cut -f3)
+    if [[ $# -gt 1 ]]; then
+      last_arg=${*: -1}
+      if [[ "$last_arg" =~ [0-9] ]]; then
+        task_arr=( "${@:1:${#}-1}" )
+        task_str="${task_arr[*]}"
+        date_str="$last_arg"
+      else
+        task_str="$*"
+        date_str=
+      fi
+    else
+      task_str="$1"
+      date_str=
+    fi
+    task=$(ttt | grep -P "^$task_str\t" | cut -f3)
     if [[ -z $task ]]; then
-        task=$1
+        task="$task_str"
     else
         echo "Continuing task \"${task}\""
     fi
-    tt_update "$(printf "%s\t%s" "start" "$task")" "$2"
+    tt_update "$(printf "%s\t%s" "start" "$task")" "$date_str"
 }
 
 function ttoff () {
