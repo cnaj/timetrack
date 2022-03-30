@@ -22,7 +22,7 @@ pub fn tasks(mut w: impl io::Write, registry: &TaskRegistry) -> io::Result<()> {
 }
 
 pub fn day_summary(mut w: impl io::Write, registry: &TaskRegistry) -> io::Result<()> {
-    writeln!(&mut w, "=== {:?}", registry.get_start_time().unwrap())?;
+    writeln!(&mut w, "=== {:?}", registry.get_start_time().unwrap().date().naive_utc())?;
 
     let tasks = registry.get_tasks();
 
