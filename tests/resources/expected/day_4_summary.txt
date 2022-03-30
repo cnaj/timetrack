@@ -1,14 +1,14 @@
 === 2019-11-28T08:55:00+01:00
-00:48	Pause
-00:53	n/n
-00:26	Bugfix Export
-00:45	Sprint planning
-00:37	CHORE - Build system
-02:39	BACKEND - logging framework
-00:18	FRONTEND - translations
-00:20	Daily
-01:45	Sprint Retro
-00:41	FRONTEND - release notes
+	00:48	Pause
+1	00:53	n/n
+2	00:26	Bugfix Export
+3	00:45	Sprint planning
+4	00:37	CHORE - Build system
+5	02:39	BACKEND - logging framework
+6	00:18	FRONTEND - translations
+7	00:20	Daily
+8	01:45	Sprint Retro
+9	00:41	FRONTEND - release notes
 -- Work time: 08:24
 -- Work hours:
 on   	off  	time 	pause

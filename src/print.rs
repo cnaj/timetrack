@@ -23,8 +23,14 @@ pub fn tasks(mut w: impl io::Write, registry: &TaskRegistry) -> io::Result<()> {
 
 pub fn day_summary(mut w: impl io::Write, registry: &TaskRegistry) -> io::Result<()> {
     writeln!(&mut w, "=== {:?}", registry.get_start_time().unwrap())?;
-    for task in registry.get_tasks() {
-        writeln!(&mut w, "{}", task)?;
+
+    let tasks = registry.get_tasks();
+
+    for (n, task) in tasks.iter().enumerate() {
+        match n {
+            0 => writeln!(&mut w, "\t{}", task)?,
+            _ => writeln!(&mut w, "{}\t{}", n, task)?,
+        }
     }
 
     writeln!(
